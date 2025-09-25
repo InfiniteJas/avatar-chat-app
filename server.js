@@ -1,5 +1,5 @@
-// server.js (ВЕРСИЯ ДЛЯ ДЕМО С ХАРДКОДОМ)
-require('dotenv').config(); // Оставляем на будущее
+// server.js (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -7,17 +7,14 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🛑 ВНИМАНИЕ: КЛЮЧИ ЗАХАРДКОЖЕНЫ ДЛЯ ДЕМОНСТРАЦИИ!
-// ЭТО НЕБЕЗОПАСНО ДЛЯ РАБОЧЕЙ ВЕРСИИ.
-// ПОСЛЕ ДЕМО ЗАМЕНИТЕ ЭТИ СТРОКИ НА process.env.VAR_NAME
-// И ДОБАВЬТЕ КЛЮЧИ В ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ НА RAILWAY.
-const AZURE_OPENAI_ENDPOINT = "https://ass-mini.openai.azure.com/";
-const AZURE_OPENAI_API_KEY = "ojOz45IiCJ45ETnaz4Q50bEyVmYLfjk2K2ex5fhtGsAndInu6olZJQQJ99BIACHYHv6XJ3w3AAABACOGs4er"; // <-- ИСПОЛЬЗУЙТЕ НОВЫЙ СГЕНЕРИРОВАННЫЙ КЛЮЧ!
+// Эти переменные берутся из настроек Railway
+const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT;
+const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
 
 // --- Настройка сервера ---
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // Отдаем фронтенд
+app.use(express.static('public'));
 
 // --- Функции-помощники для проксирования ---
 const getAzureApiUrl = (path) => `${AZURE_OPENAI_ENDPOINT}/openai/${path}?api-version=2024-05-01-preview`;
@@ -27,7 +24,7 @@ const proxyRequest = async (req, res, method, azurePath) => {
     try {
         const response = await axios({
             method: method,
-            url: getAzureApiApiUrl(azurePath),
+            url: getAzureApiUrl(azurePath), // <-- ЗДЕСЬ БЫЛА ОПЕЧАТКА, ТЕПЕРЬ ИСПРАВЛЕНО
             data: req.body,
             headers: getHeaders(),
         });
@@ -50,7 +47,6 @@ const proxyGetRequest = (req, res, azurePath) => {
             res.status(status).json({ error: 'Proxy GET request failed', details: data });
         });
 };
-
 
 // --- API эндпоинты для прокси ---
 app.post('/api/threads', (req, res) => proxyRequest(req, res, 'POST', 'threads'));
