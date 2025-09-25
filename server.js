@@ -1,4 +1,4 @@
-// server.js (ФИНАЛЬНАЯ ВЕРСИЯ С ИСПРАВЛЕННЫМ ВЕБ-ПОИСКОМ)
+// server.js (ФИНАЛЬНАЯ ВЕРСИЯ БЕЗ ДУБЛИКАТОВ)
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -11,11 +11,8 @@ const PORT = process.env.PORT || 3000;
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
 const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
 const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
-// Используем ключ от универсального ресурса
 const BING_SEARCH_API_KEY = "6f6pWKgZJIax7N63ncfwdK0OIqjxAMmNmLDm8Crm7UpiDfd38bTbJQQJ99BIACHYHv6XJ3w3AAAEACOGAc8C";
-// Конечная точка универсального ресурса
 const BING_SEARCH_ENDPOINT = "https://myuniversalaikey.cognitiveservices.azure.com/";
-
 
 // --- Настройка сервера ---
 app.use(cors());
@@ -30,8 +27,33 @@ app.get('/', (req, res) => {
 const getAzureApiUrl = (path) => `${AZURE_OPENAI_ENDPOINT.replace(/\/$/, '')}/openai/${path}?api-version=2024-05-01-preview`;
 const getHeaders = () => ({ 'api-key': AZURE_OPENAI_API_KEY, 'Content-Type': 'application/json' });
 
-const proxyRequest = async (req, res, method, azurePath) => { /* ... ваш код без изменений ... */ };
-const proxyGetRequest = (req, res, azurePath) => { /* ... ваш код без изменений ... */ };
+const proxyRequest = async (req, res, method, azurePath) => {
+    try {
+        const response = await axios({
+            method,
+            url: getAzureApiUrl(azurePath),
+            data: req.body,
+            headers: getHeaders(),
+        });
+        res.status(response.status).json(response.data);
+    } catch (error) {
+        const status = error.response ? error.response.status : 500;
+        const data = error.response ? error.response.data : { message: error.message };
+        console.error(`Error proxying to ${azurePath}:`, data);
+        res.status(status).json({ error: 'Proxy request failed', details: data });
+    }
+};
+
+const proxyGetRequest = (req, res, azurePath) => {
+    axios.get(getAzureApiUrl(azurePath), { headers: getHeaders() })
+        .then(response => res.status(response.status).json(response.data))
+        .catch(error => {
+            const status = error.response ? error.response.status : 500;
+            const data = error.response ? error.response.data : { message: error.message };
+            console.error('Error proxying GET request:', data);
+            res.status(status).json({ error: 'Proxy GET request failed', details: data });
+        });
+};
 
 // --- API эндпоинты для общения с Ассистентом Azure ---
 app.post('/api/threads', (req, res) => proxyRequest(req, res, 'POST', 'threads'));
@@ -54,23 +76,33 @@ app.post('/api/assistant', async (req, res) => {
 
     // --- ОБРАБОТЧИК ДЛЯ NITEC-AI ---
     if (function_name === 'get_external_info') {
-        // ... ваш код для nitec-ai без изменений ...
+        try {
+            const { source_model, user_query } = arguments;
+            console.log(`--- Отправка запроса в nitec-ai.kz... ---`);
+            const nitecResponse = await axios.post(
+                'https://nitec-ai.kz/api/chat/completions',
+                { model: source_model, stream: false, messages: [{ role: 'user', content: user_query }] },
+                { headers: { 'Authorization': `Bearer ${NITEC_AI_BEARER_TOKEN}`, 'Content-Type': 'application/json' } }
+            );
+            const finalContent = nitecResponse.data.choices[0].message.content;
+            console.log(`--- Получен успешный ответ от ${source_model} ---`);
+            return res.json({ success: true, result: finalContent });
+        } catch (error) {
+            console.error("!!! ОШИБКА при вызове nitec-ai:", error.message);
+            return res.json({ success: false, error: error.message });
+        }
     }
 
-    // --- ИСПРАВЛЕННЫЙ ОБРАБОТЧИК ДЛЯ ВЕБ-ПОИСКА ---
+    // --- ОБРАБОТЧИК ДЛЯ ВЕБ-ПОИСКА ---
     if (function_name === 'perform_web_search') {
         try {
             const { search_query } = arguments;
-            // ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ URL
             const bingApiUrl = `${BING_SEARCH_ENDPOINT.replace(/\/$/, '')}/bing/v7.0/search`;
-            
             console.log(`--- Отправка запроса в Bing Search API: "${search_query}" на адрес ${bingApiUrl} ---`);
-            
             const bingResponse = await axios.get(bingApiUrl, {
                 headers: { 'Ocp-Apim-Subscription-Key': BING_SEARCH_API_KEY },
                 params: { q: search_query, count: 3, mkt: 'ru-RU' }
             });
-
             const searchResults = bingResponse.data.webPages.value
                 .map((page, index) => `Источник ${index + 1}:\nЗаголовок: ${page.name}\nURL: ${page.url}\nФрагмент: ${page.snippet}`)
                 .join('\n\n');
@@ -92,28 +124,3 @@ app.post('/api/assistant', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-
-// Вспомогательные функции proxyRequest и proxyGetRequest нужно вставить из предыдущих версий
-async function proxyRequest(req, res, method, azurePath) {
-    try {
-        const response = await axios({ method, url: getAzureApiUrl(azurePath), data: req.body, headers: getHeaders() });
-        res.status(response.status).json(response.data);
-    } catch (error) {
-        const status = error.response ? error.response.status : 500;
-        const data = error.response ? error.response.data : { message: error.message };
-        console.error(`Error proxying to ${azurePath}:`, data);
-        res.status(status).json({ error: 'Proxy request failed', details: data });
-    }
-};
-
-function proxyGetRequest(req, res, azurePath) {
-    axios.get(getAzureApiUrl(azurePath), { headers: getHeaders() })
-        .then(response => res.status(response.status).json(response.data))
-        .catch(error => {
-            const status = error.response ? error.response.status : 500;
-            const data = error.response ? error.response.data : { message: error.message };
-            console.error('Error proxying GET request:', data);
-            res.status(status).json({ error: 'Proxy GET request failed', details: data });
-        });
-};
-
