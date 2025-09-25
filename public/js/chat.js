@@ -28,7 +28,7 @@ var lastSpeakTime;
 var imgUrl = "";
 
 // Assistant API variables
-var assistantId = 'asst_TrorPZPicuXbSXREMTwiHVJb'; // ID вашего ассистента
+var assistantId = 'asst_LMHaNbLhdyr9i92RpMm3fsKr'; // ID вашего ассистента
 var threadId = null;
 var runId = null;
 var functionCallsEndpoint = 'https://avatar-api-proxy-production.up.railway.app/api/assistant'; // URL для ВЫПОЛНЕНИЯ функций
