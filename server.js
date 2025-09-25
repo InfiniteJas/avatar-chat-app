@@ -1,4 +1,4 @@
-// server.js (ПОЛНАЯ И ПРОВЕРЕННАЯ ВЕРСИЯ С ХАРДКОДОМ)
+// server.js (ФИНАЛЬНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ)
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 
 // 🛑 ВАШИ ДАННЫЕ ВСТАВЛЕНЫ ПРЯМО В КОД
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
-const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG"; // <-- НЕ ЗАБУДЬТЕ ВСТАВИТЬ СЮДА ВАШ КЛЮЧ
+const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG"; // Убедитесь, что это ваш актуальный ключ
 
 // --- Настройка сервера ---
 app.use(cors());
@@ -26,7 +26,8 @@ const getHeaders = () => ({ 'api-key': AZURE_OPENAI_API_KEY, 'Content-Type': 'ap
 
 const proxyRequest = async (req, res, method, azurePath) => {
     try {
-        if (!AZURE_OPENAI_ENDPOINT || AZURE_OPENAI_API_KEY === "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG") {
+        // ИСПРАВЛЕННАЯ ПРОВЕРКА
+        if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
             console.error("Azure OpenAI credentials are not set in the code.");
             return res.status(500).json({ error: "Server configuration error: Credentials not set." });
         }
@@ -46,7 +47,8 @@ const proxyRequest = async (req, res, method, azurePath) => {
 };
 
 const proxyGetRequest = (req, res, azurePath) => {
-    if (!AZURE_OPENAI_ENDPOINT || AZURE_OPENAI_API_KEY === "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG") {
+    // ИСПРАВЛЕННАЯ ПРОВЕРКА
+    if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
         console.error("Azure OpenAI credentials are not set in the code.");
         return res.status(500).json({ error: "Server configuration error: Credentials not set." });
     }
@@ -63,7 +65,6 @@ const proxyGetRequest = (req, res, azurePath) => {
 // --- API эндпоинты ---
 app.post('/api/threads', (req, res) => proxyRequest(req, res, 'POST', 'threads'));
 app.post('/api/threads/:threadId/messages', (req, res) => proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/messages`));
-// ВОТ ЭТОТ МАРШРУТ, СКОРЕЕ ВСЕГО, ОТСУТСТВОВАЛ В ВАШЕЙ ВЕРСИИ ФАЙЛА
 app.post('/api/threads/:threadId/runs', (req, res) => proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/runs`));
 app.get('/api/threads/:threadId/runs/:runId', (req, res) => proxyGetRequest(req, res, `threads/${req.params.threadId}/runs/${req.params.runId}`));
 app.post('/api/threads/:threadId/runs/:runId/submit_tool_outputs', (req, res) => proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/runs/${req.params.runId}/submit_tool_outputs`));
