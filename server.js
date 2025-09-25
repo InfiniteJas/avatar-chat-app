@@ -1,4 +1,4 @@
-// server.js (ФИНАЛЬНАЯ ВЕРСИЯ С ХАРДКОДОМ ДЛЯ ТЕСТА)
+// server.js (ФИНАЛЬНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ)
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -7,12 +7,9 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🛑 ВНИМАНИЕ: ВАШИ ДАННЫЕ ВСТАВЛЕНЫ ПРЯМО В КОД!
-// Это небезопасно для постоянного использования.
-// После успешного теста настоятельно рекомендуется перейти на переменные окружения.
-
+// 🛑 ВНИМАНИЕ: ВАШИ ДАННЫЛЕ ВСТАВЛЕНЫ ПРЯМО В КОД!
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
-const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG"; // <--- ЗАМЕНИТЕ ЭТУ СТРОКУ
+const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG"; // Убедитесь, что это ваш актуальный ключ
 
 // --- Настройка сервера ---
 app.use(cors());
@@ -29,7 +26,8 @@ const getHeaders = () => ({ 'api-key': AZURE_OPENAI_API_KEY, 'Content-Type': 'ap
 
 const proxyRequest = async (req, res, method, azurePath) => {
     try {
-        if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY || AZURE_OPENAI_API_KEY.startsWith("FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG")) {
+        // Упрощенная проверка: только на наличие данных
+        if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
             console.error("Azure OpenAI credentials are not set in the code.");
             return res.status(500).json({ error: "Server configuration error: Credentials not set." });
         }
@@ -43,13 +41,14 @@ const proxyRequest = async (req, res, method, azurePath) => {
     } catch (error) {
         const status = error.response ? error.response.status : 500;
         const data = error.response ? error.response.data : { message: error.message };
-        console.error(`Error proxying to ${azurePath}:`, error.response.data);
+        console.error(`Error proxying to ${azurePath}:`, error.response ? error.response.data : "Unknown error");
         res.status(status).json({ error: 'Proxy request failed', details: data });
     }
 };
 
 const proxyGetRequest = (req, res, azurePath) => {
-    if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY || AZURE_OPENAI_API_KEY.startsWith("СЮДА")) {
+    // Упрощенная проверка
+    if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
         console.error("Azure OpenAI credentials are not set in the code.");
         return res.status(500).json({ error: "Server configuration error: Credentials not set." });
     }
@@ -58,7 +57,7 @@ const proxyGetRequest = (req, res, azurePath) => {
         .catch(error => {
             const status = error.response ? error.response.status : 500;
             const data = error.response ? error.response.data : { message: error.message };
-            console.error('Error proxying GET request:', error.response.data);
+            console.error('Error proxying GET request:', error.response ? error.response.data : "Unknown error");
             res.status(status).json({ error: 'Proxy GET request failed', details: data });
         });
 };
