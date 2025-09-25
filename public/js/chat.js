@@ -31,7 +31,7 @@ var imgUrl = "";
 var assistantId = 'asst_LMHsNblhuLgYt9I2RpMfm3Kr'; // ID вашего ассистента
 var threadId = null;
 var runId = null;
-var functionCallsEndpoint = 'https://avatar-api-proxy-production.up.railway.app/api/assistant'; // URL для ВЫПОЛНЕНИЯ функций
+var functionCallsEndpoint = '/api/assistant';
 
 // Connect to avatar service
 function connectAvatar() {
