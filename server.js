@@ -1,4 +1,4 @@
-// server.js (ФИНАЛЬНАЯ ВЕРСИЯ БЕЗ ДУБЛИКАТОВ)
+// server.js (ФИНАЛЬНАЯ ВЕРСИЯ С ИСПРАВЛЕННЫМ ВЕБ-ПОИСКОМ)
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -11,8 +11,11 @@ const PORT = process.env.PORT || 3000;
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
 const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
 const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
+// Используем ключ от универсального ресурса
 const BING_SEARCH_API_KEY = "6f6pWKgZJIax7N63ncfwdK0OIqjxAMmNmLDm8Crm7UpiDfd38bTbJQQJ99BIACHYHv6XJ3w3AAAEACOGAc8C";
+// Конечная точка универсального ресурса
 const BING_SEARCH_ENDPOINT = "https://myuniversalaikey.cognitiveservices.azure.com/";
+
 
 // --- Настройка сервера ---
 app.use(cors());
@@ -93,16 +96,20 @@ app.post('/api/assistant', async (req, res) => {
         }
     }
 
-    // --- ОБРАБОТЧИК ДЛЯ ВЕБ-ПОИСКА ---
+    // --- ИСПРАВЛЕННЫЙ ОБРАБОТЧИК ДЛЯ ВЕБ-ПОИСКА ---
     if (function_name === 'perform_web_search') {
         try {
             const { search_query } = arguments;
+            // ИСПОЛЬЗУЕМ ПРАВИЛЬНЫЙ URL
             const bingApiUrl = `${BING_SEARCH_ENDPOINT.replace(/\/$/, '')}/bing/v7.0/search`;
+            
             console.log(`--- Отправка запроса в Bing Search API: "${search_query}" на адрес ${bingApiUrl} ---`);
+            
             const bingResponse = await axios.get(bingApiUrl, {
                 headers: { 'Ocp-Apim-Subscription-Key': BING_SEARCH_API_KEY },
                 params: { q: search_query, count: 3, mkt: 'ru-RU' }
             });
+
             const searchResults = bingResponse.data.webPages.value
                 .map((page, index) => `Источник ${index + 1}:\nЗаголовок: ${page.name}\nURL: ${page.url}\nФрагмент: ${page.snippet}`)
                 .join('\n\n');
@@ -124,3 +131,4 @@ app.post('/api/assistant', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
