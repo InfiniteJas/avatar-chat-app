@@ -1,4 +1,4 @@
-// server.js (ФИНАЛЬНАЯ ВЕРСИЯ С ОБРАБОТКОЙ ФУНКЦИЙ)
+// server.js (ФИНАЛЬНАЯ ВЕРСИЯ С ХАРДКОДОМ И ВСЕМИ ФУНКЦИЯМИ)
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -9,8 +9,9 @@ const PORT = process.env.PORT || 3000;
 
 // 🛑 ВАШИ ДАННЫЕ ВСТАВЛЕНЫ ПРЯМО В КОД
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
-const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG"; // Убедитесь, что это ваш актуальный ключ
-const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147"; // <-- ВАШ КЛЮЧ ДЛЯ NITEC-AI
+const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
+const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
+const BING_SEARCH_API_KEY = "6f6pWKgZJIax7N63ncfwdK0OIqjxAMmNmLDm8Crm7UpiDfd38bTbJQQJ99BIACHYHv6XJ3w3AAAEACOGAc8C";
 
 // --- Настройка сервера ---
 app.use(cors());
@@ -27,10 +28,6 @@ const getHeaders = () => ({ 'api-key': AZURE_OPENAI_API_KEY, 'Content-Type': 'ap
 
 const proxyRequest = async (req, res, method, azurePath) => {
     try {
-        if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
-            console.error("Azure OpenAI credentials are not set in the code.");
-            return res.status(500).json({ error: "Server configuration error: Credentials not set." });
-        }
         const response = await axios({
             method: method,
             url: getAzureApiUrl(azurePath),
@@ -47,10 +44,6 @@ const proxyRequest = async (req, res, method, azurePath) => {
 };
 
 const proxyGetRequest = (req, res, azurePath) => {
-    if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY) {
-        console.error("Azure OpenAI credentials are not set in the code.");
-        return res.status(500).json({ error: "Server configuration error: Credentials not set." });
-    }
     axios.get(getAzureApiUrl(azurePath), { headers: getHeaders() })
         .then(response => res.status(response.status).json(response.data))
         .catch(error => {
@@ -70,61 +63,58 @@ app.post('/api/threads/:threadId/runs/:runId/submit_tool_outputs', (req, res) =>
 app.get('/api/threads/:threadId/messages', (req, res) => proxyGetRequest(req, res, `threads/${req.params.threadId}/messages`));
 
 
-// +++++++++++++ НОВЫЙ БЛОК ДЛЯ ОБРАБОТКИ ВЫЗОВА ФУНКЦИЙ +++++++++++++
-// Этот эндпоинт будет вызываться из chat.js, когда Ассистент захочет использовать функцию
-// +++++++++++++ НОВЫЙ БЛОК ДЛЯ ОБРАБОТКИ ВЫЗОВА ФУНКЦИЙ +++++++++++++
-// Этот эндпоинт будет вызываться из chat.js, когда Ассистент захочет использовать функцию
+// +++++++++++++ ОБНОВЛЕННЫЙ БЛОК ДЛЯ ОБРАБОТКИ ВСЕХ ФУНКЦИЙ +++++++++++++
 app.post('/api/assistant', async (req, res) => {
     const { function_name, arguments } = req.body;
 
+    console.log(`\n=============================================`);
+    console.log(`  >>> ПОЛУЧЕН ЗАПРОС НА ВЫЗОВ ФУНКЦИИ <<<  `);
+    console.log(`- Имя функции: ${function_name}`);
+    console.log(`- Аргументы: ${JSON.stringify(arguments)}`);
+    console.log(`=============================================`);
+
+    // --- ОБРАБОТЧИК ДЛЯ NITEC-AI ---
     if (function_name === 'get_external_info') {
         try {
             const { source_model, user_query } = arguments;
-
-            // --- НАЧАЛО: НАШИ НОВЫЕ, БОЛЕЕ ПОДРОБНЫЕ ЛОГИ ---
-            console.log("\n=============================================");
-            console.log("  >>> ПОЛУЧЕН ЗАПРОС НА ВЫЗОВ ФУНКЦИИ (NITEC-AI) <<<  ");
-            console.log("=============================================");
-            console.log(`- Имя функции: ${function_name}`);
-            console.log(`- Целевая модель: ${source_model}`);
-            console.log(`- Запрос пользователя: "${user_query}"`);
-            console.log("--- Отправка запроса в nitec-ai.kz... ---");
-            // --- КОНЕЦ НОВЫХ ЛОГОВ ---
-
+            console.log(`--- Отправка запроса в nitec-ai.kz... ---`);
             const nitecResponse = await axios.post(
                 'https://nitec-ai.kz/api/chat/completions',
-                {
-                    model: source_model,
-                    stream: false, // Получаем полный ответ, не по частям
-                    messages: [{ role: 'user', content: user_query }]
-                },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${NITEC_AI_BEARER_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
+                { model: source_model, stream: false, messages: [{ role: 'user', content: user_query }] },
+                { headers: { 'Authorization': `Bearer ${NITEC_AI_BEARER_TOKEN}`, 'Content-Type': 'application/json' } }
             );
-            
             const finalContent = nitecResponse.data.choices[0].message.content;
-
-            // --- ЛОГИРОВАНИЕ УСПЕШНОГО ОТВЕТА ---
-            console.log("--- Получен успешный ответ от nitec-ai.kz ---");
-            console.log(`- Ответ от ${source_model}: "${finalContent.substring(0, 200)}..."`); // Показываем первые 200 символов
-            console.log("=============================================\n");
-            // --- КОНЕЦ ---
-            
-            // Возвращаем успешный результат обратно в chat.js
+            console.log(`--- Получен успешный ответ от ${source_model} ---`);
             return res.json({ success: true, result: finalContent });
-
         } catch (error) {
             console.error("!!! ОШИБКА при вызове nitec-ai:", error.message);
             return res.json({ success: false, error: error.message });
         }
     }
 
+    // --- НОВЫЙ ОБРАБОТЧИК ДЛЯ ВЕБ-ПОИСКА ---
+    if (function_name === 'perform_web_search') {
+        try {
+            const { search_query } = arguments;
+            console.log(`--- Отправка запроса в Bing Search API: "${search_query}" ---`);
+            const bingResponse = await axios.get('https://api.bing.microsoft.com/v7.0/search', {
+                headers: { 'Ocp-Apim-Subscription-Key': BING_SEARCH_API_KEY },
+                params: { q: search_query, count: 3, mkt: 'ru-RU' } // Ищем 3 результата на русском
+            });
+            const searchResults = bingResponse.data.webPages.value
+                .map((page, index) => `Источник ${index + 1}:\nЗаголовок: ${page.name}\nURL: ${page.url}\nФрагмент: ${page.snippet}`)
+                .join('\n\n');
+            
+            console.log(`--- Получен успешный ответ от Bing Search ---`);
+            return res.json({ success: true, result: searchResults || "По вашему запросу ничего не найдено." });
+        } catch (error) {
+            console.error("!!! ОШИБКА при вызове Bing Search:", error.message);
+            return res.json({ success: false, error: "Ошибка при выполнении веб-поиска." });
+        }
+    }
+    
     // Если вызвана какая-то другая неизвестная функция
-    return res.status(400).json({ success: false, error: 'Unknown function called' });
+    return res.status(400).json({ success: false, error: `Unknown function called: ${function_name}` });
 });
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
