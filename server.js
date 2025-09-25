@@ -72,6 +72,8 @@ app.get('/api/threads/:threadId/messages', (req, res) => proxyGetRequest(req, re
 
 // +++++++++++++ НОВЫЙ БЛОК ДЛЯ ОБРАБОТКИ ВЫЗОВА ФУНКЦИЙ +++++++++++++
 // Этот эндпоинт будет вызываться из chat.js, когда Ассистент захочет использовать функцию
+// +++++++++++++ НОВЫЙ БЛОК ДЛЯ ОБРАБОТКИ ВЫЗОВА ФУНКЦИЙ +++++++++++++
+// Этот эндпоинт будет вызываться из chat.js, когда Ассистент захочет использовать функцию
 app.post('/api/assistant', async (req, res) => {
     const { function_name, arguments } = req.body;
 
@@ -79,7 +81,15 @@ app.post('/api/assistant', async (req, res) => {
         try {
             const { source_model, user_query } = arguments;
 
-            console.log(`Получена команда от Ассистента: вызвать модель ${source_model} с запросом: "${user_query}"`);
+            // --- НАЧАЛО: НАШИ НОВЫЕ, БОЛЕЕ ПОДРОБНЫЕ ЛОГИ ---
+            console.log("\n=============================================");
+            console.log("  >>> ПОЛУЧЕН ЗАПРОС НА ВЫЗОВ ФУНКЦИИ (NITEC-AI) <<<  ");
+            console.log("=============================================");
+            console.log(`- Имя функции: ${function_name}`);
+            console.log(`- Целевая модель: ${source_model}`);
+            console.log(`- Запрос пользователя: "${user_query}"`);
+            console.log("--- Отправка запроса в nitec-ai.kz... ---");
+            // --- КОНЕЦ НОВЫХ ЛОГОВ ---
 
             const nitecResponse = await axios.post(
                 'https://nitec-ai.kz/api/chat/completions',
@@ -97,13 +107,18 @@ app.post('/api/assistant', async (req, res) => {
             );
             
             const finalContent = nitecResponse.data.choices[0].message.content;
-            console.log(`Получен ответ от ${source_model}: ${finalContent}`);
 
+            // --- ЛОГИРОВАНИЕ УСПЕШНОГО ОТВЕТА ---
+            console.log("--- Получен успешный ответ от nitec-ai.kz ---");
+            console.log(`- Ответ от ${source_model}: "${finalContent.substring(0, 200)}..."`); // Показываем первые 200 символов
+            console.log("=============================================\n");
+            // --- КОНЕЦ ---
+            
             // Возвращаем успешный результат обратно в chat.js
             return res.json({ success: true, result: finalContent });
 
         } catch (error) {
-            console.error("Ошибка при вызове nitec-ai:", error.message);
+            console.error("!!! ОШИБКА при вызове nitec-ai:", error.message);
             return res.json({ success: false, error: error.message });
         }
     }
