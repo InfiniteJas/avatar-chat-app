@@ -1,8 +1,9 @@
-// server.js (ИСПРАВЛЕННАЯ ВЕРСИЯ)
+// server.js (ФИНАЛЬНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ)
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const path = require('path'); // <-- ДОБАВЛЕНА ЭТА СТРОКА
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,7 +15,17 @@ const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
 // --- Настройка сервера ---
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+
+// Сначала настроим отдачу статичных файлов (CSS, JS, картинки)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// --- ДОБАВЛЕН НОВЫЙ БЛОК ДЛЯ ОБРАБОТКИ ГЛАВНОЙ СТРАНИЦЫ ---
+// Этот маршрут будет обрабатывать запрос к корню сайта
+app.get('/', (req, res) => {
+    // Он будет отправлять файл chat.html в ответ
+    res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+});
+// -------------------------------------------------------------
 
 // --- Функции-помощники для проксирования ---
 const getAzureApiUrl = (path) => `${AZURE_OPENAI_ENDPOINT}/openai/${path}?api-version=2024-05-01-preview`;
@@ -24,7 +35,7 @@ const proxyRequest = async (req, res, method, azurePath) => {
     try {
         const response = await axios({
             method: method,
-            url: getAzureApiUrl(azurePath), // <-- ЗДЕСЬ БЫЛА ОПЕЧАТКА, ТЕПЕРЬ ИСПРАВЛЕНО
+            url: getAzureApiUrl(azurePath),
             data: req.body,
             headers: getHeaders(),
         });
@@ -48,7 +59,7 @@ const proxyGetRequest = (req, res, azurePath) => {
         });
 };
 
-// --- API эндпоинты для прокси ---
+// --- API эндпоинты для прокси (остаются без изменений) ---
 app.post('/api/threads', (req, res) => proxyRequest(req, res, 'POST', 'threads'));
 app.post('/api/threads/:threadId/messages', (req, res) => proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/messages`));
 app.post('/api/threads/:threadId/runs', (req, res) => proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/runs`));
@@ -58,5 +69,5 @@ app.get('/api/threads/:threadId/messages', (req, res) => proxyGetRequest(req, re
 
 // --- Запуск сервера ---
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
