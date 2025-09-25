@@ -1,5 +1,5 @@
-// server.js
-require('dotenv').config();
+// server.js (ВЕРСИЯ ДЛЯ ДЕМО С ХАРДКОДОМ)
+require('dotenv').config(); // Оставляем на будущее
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -7,15 +7,17 @@ const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Эти переменные нужно будет добавить в настройки Railway
-const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT;
-const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
+// 🛑 ВНИМАНИЕ: КЛЮЧИ ЗАХАРДКОЖЕНЫ ДЛЯ ДЕМОНСТРАЦИИ!
+// ЭТО НЕБЕЗОПАСНО ДЛЯ РАБОЧЕЙ ВЕРСИИ.
+// ПОСЛЕ ДЕМО ЗАМЕНИТЕ ЭТИ СТРОКИ НА process.env.VAR_NAME
+// И ДОБАВЬТЕ КЛЮЧИ В ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ НА RAILWAY.
+const AZURE_OPENAI_ENDPOINT = "https://ass-mini.openai.azure.com/";
+const AZURE_OPENAI_API_KEY = "ojOz45IiCJ45ETnaz4Q50bEyVmYLfjk2K2ex5fhtGsAndInu6olZJQQJ99BIACHYHv6XJ3w3AAABACOGs4er"; // <-- ИСПОЛЬЗУЙТЕ НОВЫЙ СГЕНЕРИРОВАННЫЙ КЛЮЧ!
 
 // --- Настройка сервера ---
 app.use(cors());
 app.use(express.json());
-// Отдаем все файлы из папки 'public' как статический контент (ваш фронтенд)
-app.use(express.static('public'));
+app.use(express.static('public')); // Отдаем фронтенд
 
 // --- Функции-помощники для проксирования ---
 const getAzureApiUrl = (path) => `${AZURE_OPENAI_ENDPOINT}/openai/${path}?api-version=2024-05-01-preview`;
@@ -25,7 +27,7 @@ const proxyRequest = async (req, res, method, azurePath) => {
     try {
         const response = await axios({
             method: method,
-            url: getAzureApiUrl(azurePath),
+            url: getAzureApiApiUrl(azurePath),
             data: req.body,
             headers: getHeaders(),
         });
@@ -38,21 +40,8 @@ const proxyRequest = async (req, res, method, azurePath) => {
     }
 };
 
-// --- API эндпоинты для прокси ---
-
-// Создание треда
-app.post('/api/threads', (req, res) => proxyRequest(req, res, 'POST', 'threads'));
-
-// Добавление сообщения в тред
-app.post('/api/threads/:threadId/messages', (req, res) => proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/messages`));
-
-// Запуск ассистента
-app.post('/api/threads/:threadId/runs', (req, res) => proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/runs`));
-
-// Проверка статуса запуска
-app.get('/api/threads/:threadId/runs/:runId', (req, res) => {
-    // Для GET запросов тело не нужно, поэтому проксируем немного иначе
-    axios.get(getAzureApiUrl(`threads/${req.params.threadId}/runs/${req.params.runId}`), { headers: getHeaders() })
+const proxyGetRequest = (req, res, azurePath) => {
+     axios.get(getAzureApiUrl(azurePath), { headers: getHeaders() })
         .then(response => res.status(response.status).json(response.data))
         .catch(error => {
             const status = error.response ? error.response.status : 500;
@@ -60,22 +49,16 @@ app.get('/api/threads/:threadId/runs/:runId', (req, res) => {
             console.error('Error proxying GET request:', data);
             res.status(status).json({ error: 'Proxy GET request failed', details: data });
         });
-});
+};
 
-// Отправка результатов выполнения функций
+
+// --- API эндпоинты для прокси ---
+app.post('/api/threads', (req, res) => proxyRequest(req, res, 'POST', 'threads'));
+app.post('/api/threads/:threadId/messages', (req, res) => proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/messages`));
+app.post('/api/threads/:threadId/runs', (req, res) => proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/runs`));
+app.get('/api/threads/:threadId/runs/:runId', (req, res) => proxyGetRequest(req, res, `threads/${req.params.threadId}/runs/${req.params.runId}`));
 app.post('/api/threads/:threadId/runs/:runId/submit_tool_outputs', (req, res) => proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/runs/${req.params.runId}/submit_tool_outputs`));
-
-// Получение сообщений из треда
-app.get('/api/threads/:threadId/messages', (req, res) => {
-    axios.get(getAzureApiUrl(`threads/${req.params.threadId}/messages`), { headers: getHeaders() })
-        .then(response => res.status(response.status).json(response.data))
-        .catch(error => {
-            const status = error.response ? error.response.status : 500;
-            const data = error.response ? error.response.data : { message: error.message };
-            res.status(status).json({ error: 'Proxy GET request failed', details: data });
-        });
-});
-
+app.get('/api/threads/:threadId/messages', (req, res) => proxyGetRequest(req, res, `threads/${req.params.threadId}/messages`));
 
 // --- Запуск сервера ---
 app.listen(PORT, () => {
