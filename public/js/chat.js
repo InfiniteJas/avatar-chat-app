@@ -1,312 +1,244 @@
+// Файл: public/js/chat.js (ПОЛНАЯ ФИНАЛЬНАЯ ВЕРСИЯ)
+
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license.
 
 // Global objects
-var speechRecognizer
-var avatarSynthesizer
-var peerConnection
-var peerConnectionDataChannel
-var messages = []
-var messageInitiated = false
-var dataSources = []
-var sentenceLevelPunctuations = [ '.', '?', '!', ':', ';', '。', '？', '！', '：', '；' ]
-var enableDisplayTextAlignmentWithSpeech = true
-var enableQuickReply = false
-var quickReplies = [ 'Let me take a look.', 'Let me check.', 'One moment, please.' ]
-var byodDocRegex = new RegExp(/\[doc(\d+)\]/g)
-var isSpeaking = false
-var isReconnecting = false
-var speakingText = ""
-var spokenTextQueue = []
-var repeatSpeakingSentenceAfterReconnection = true
-var sessionActive = false
-var userClosedSession = false
-var lastInteractionTime = new Date()
-var lastSpeakTime
-var imgUrl = ""
+var speechRecognizer;
+var avatarSynthesizer;
+var peerConnection;
+var peerConnectionDataChannel;
+var messages = [];
+var messageInitiated = false;
+var dataSources = [];
+var sentenceLevelPunctuations = [ '.', '?', '!', ':', ';', '。', '？', '！', '：', '；' ];
+var enableDisplayTextAlignmentWithSpeech = true;
+var enableQuickReply = false;
+var quickReplies = [ 'Let me take a look.', 'Let me check.', 'One moment, please.' ];
+var byodDocRegex = new RegExp(/\[doc(\d+)\]/g);
+var isSpeaking = false;
+var isReconnecting = false;
+var speakingText = "";
+var spokenTextQueue = [];
+var repeatSpeakingSentenceAfterReconnection = true;
+var sessionActive = false;
+var userClosedSession = false;
+var lastInteractionTime = new Date();
+var lastSpeakTime;
+var imgUrl = "";
 
 // Assistant API variables
-var assistantId = 'asst_TrorPZPicuXbSXREMTwiHVJb'
-var threadId = null
-var runId = null
-var functionCallsEndpoint = 'https://avatar-api-proxy-production.up.railway.app/api/assistant'
+var assistantId = 'asst_TrorPZPicuXbSXREMTwiHVJb'; // ID вашего ассистента
+var threadId = null;
+var runId = null;
+var functionCallsEndpoint = 'https://avatar-api-proxy-production.up.railway.app/api/assistant'; // URL для ВЫПОЛНЕНИЯ функций
 
 // Connect to avatar service
 function connectAvatar() {
-    const cogSvcRegion = document.getElementById('region').value
-    const cogSvcSubKey = document.getElementById('APIKey').value
+    const cogSvcRegion = document.getElementById('region').value;
+    const cogSvcSubKey = document.getElementById('APIKey').value;
     if (cogSvcSubKey === '') {
-        alert('Please fill in the API key of your speech resource.')
-        return
+        alert('Please fill in the API key of your speech resource.');
+        return;
     }
-
-    const privateEndpointEnabled = document.getElementById('enablePrivateEndpoint').checked
-    const privateEndpoint = document.getElementById('privateEndpoint').value.slice(8)
+    const privateEndpointEnabled = document.getElementById('enablePrivateEndpoint').checked;
+    const privateEndpoint = document.getElementById('privateEndpoint').value.slice(8);
     if (privateEndpointEnabled && privateEndpoint === '') {
-        alert('Please fill in the Azure Speech endpoint.')
-        return
+        alert('Please fill in the Azure Speech endpoint.');
+        return;
     }
-
-    let speechSynthesisConfig
+    let speechSynthesisConfig;
     if (privateEndpointEnabled) {
-        speechSynthesisConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${privateEndpoint}/tts/cognitiveservices/websocket/v1?enableTalkingAvatar=true`), cogSvcSubKey) 
+        speechSynthesisConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${privateEndpoint}/tts/cognitiveservices/websocket/v1?enableTalkingAvatar=true`), cogSvcSubKey); 
     } else {
-        speechSynthesisConfig = SpeechSDK.SpeechConfig.fromSubscription(cogSvcSubKey, cogSvcRegion)
+        speechSynthesisConfig = SpeechSDK.SpeechConfig.fromSubscription(cogSvcSubKey, cogSvcRegion);
     }
-    speechSynthesisConfig.endpointId = document.getElementById('customVoiceEndpointId').value
-
-    const talkingAvatarCharacter = document.getElementById('talkingAvatarCharacter').value
-    const talkingAvatarStyle = document.getElementById('talkingAvatarStyle').value
-    const avatarConfig = new SpeechSDK.AvatarConfig(talkingAvatarCharacter, talkingAvatarStyle)
-    avatarConfig.customized = document.getElementById('customizedAvatar').checked
-    avatarConfig.useBuiltInVoice = document.getElementById('useBuiltInVoice').checked
-    avatarSynthesizer = new SpeechSDK.AvatarSynthesizer(speechSynthesisConfig, avatarConfig)
+    speechSynthesisConfig.endpointId = document.getElementById('customVoiceEndpointId').value;
+    const talkingAvatarCharacter = document.getElementById('talkingAvatarCharacter').value;
+    const talkingAvatarStyle = document.getElementById('talkingAvatarStyle').value;
+    const avatarConfig = new SpeechSDK.AvatarConfig(talkingAvatarCharacter, talkingAvatarStyle);
+    avatarConfig.customized = document.getElementById('customizedAvatar').checked;
+    avatarConfig.useBuiltInVoice = document.getElementById('useBuiltInVoice').checked;
+    avatarSynthesizer = new SpeechSDK.AvatarSynthesizer(speechSynthesisConfig, avatarConfig);
     avatarSynthesizer.avatarEventReceived = function (s, e) {
-        var offsetMessage = ", offset from session start: " + e.offset / 10000 + "ms."
+        var offsetMessage = ", offset from session start: " + e.offset / 10000 + "ms.";
         if (e.offset === 0) {
-            offsetMessage = ""
+            offsetMessage = "";
         }
-
-        console.log("Event received: " + e.description + offsetMessage)
-    }
-
-    let speechRecognitionConfig
+        console.log("Event received: " + e.description + offsetMessage);
+    };
+    let speechRecognitionConfig;
     if (privateEndpointEnabled) {
-        speechRecognitionConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${privateEndpoint}/stt/speech/universal/v2`), cogSvcSubKey) 
+        speechRecognitionConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${privateEndpoint}/stt/speech/universal/v2`), cogSvcSubKey); 
     } else {
-        speechRecognitionConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${cogSvcRegion}.stt.speech.microsoft.com/speech/universal/v2`), cogSvcSubKey)
+        speechRecognitionConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${cogSvcRegion}.stt.speech.microsoft.com/speech/universal/v2`), cogSvcSubKey);
     }
-    speechRecognitionConfig.setProperty(SpeechSDK.PropertyId.SpeechServiceConnection_LanguageIdMode, "Continuous")
-    var sttLocales = document.getElementById('sttLocales').value.split(',')
-    var autoDetectSourceLanguageConfig = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(sttLocales)
-    speechRecognizer = SpeechSDK.SpeechRecognizer.FromConfig(speechRecognitionConfig, autoDetectSourceLanguageConfig, SpeechSDK.AudioConfig.fromDefaultMicrophoneInput())
+    speechRecognitionConfig.setProperty(SpeechSDK.PropertyId.SpeechServiceConnection_LanguageIdMode, "Continuous");
+    var sttLocales = document.getElementById('sttLocales').value.split(',');
+    var autoDetectSourceLanguageConfig = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(sttLocales);
+    speechRecognizer = SpeechSDK.SpeechRecognizer.FromConfig(speechRecognitionConfig, autoDetectSourceLanguageConfig, SpeechSDK.AudioConfig.fromDefaultMicrophoneInput());
 
-    const azureOpenAIEndpoint = document.getElementById('azureOpenAIEndpoint').value
-    const azureOpenAIApiKey = document.getElementById('azureOpenAIApiKey').value
-    const azureOpenAIDeploymentName = document.getElementById('azureOpenAIDeploymentName').value
-    if (azureOpenAIEndpoint === '' || azureOpenAIApiKey === '' || azureOpenAIDeploymentName === '') {
-        alert('Please fill in the Azure OpenAI endpoint, API key and deployment name.')
-        return
-    }
+    // УДАЛЕНА ПРОВЕРКА КЛЮЧЕЙ OPENAI, ТАК КАК ОНИ ТЕПЕРЬ НА СЕРВЕРЕ
 
-    dataSources = []
-    if (document.getElementById('enableOyd').checked) {
-        const azureCogSearchEndpoint = document.getElementById('azureCogSearchEndpoint').value
-        const azureCogSearchApiKey = document.getElementById('azureCogSearchApiKey').value
-        const azureCogSearchIndexName = document.getElementById('azureCogSearchIndexName').value
-        if (azureCogSearchEndpoint === "" || azureCogSearchApiKey === "" || azureCogSearchIndexName === "") {
-            alert('Please fill in the Azure Cognitive Search endpoint, API key and index name.')
-            return
-        } else {
-            setDataSources(azureCogSearchEndpoint, azureCogSearchApiKey, azureCogSearchIndexName)
-        }
-    }
-
-    // Only initialize messages once
     if (!messageInitiated) {
-        initMessages()
-        messageInitiated = true
+        initMessages();
+        messageInitiated = true;
     }
-
-    document.getElementById('startSession').disabled = true
-    document.getElementById('configuration').hidden = true
-
-    const xhr = new XMLHttpRequest()
+    document.getElementById('startSession').disabled = true;
+    document.getElementById('configuration').hidden = true;
+    const xhr = new XMLHttpRequest();
     if (privateEndpointEnabled) {
-        xhr.open("GET", `https://${privateEndpoint}/tts/cognitiveservices/avatar/relay/token/v1`)
+        xhr.open("GET", `https://${privateEndpoint}/tts/cognitiveservices/avatar/relay/token/v1`);
     } else {
-        xhr.open("GET", `https://${cogSvcRegion}.tts.speech.microsoft.com/cognitiveservices/avatar/relay/token/v1`)
+        xhr.open("GET", `https://${cogSvcRegion}.tts.speech.microsoft.com/cognitiveservices/avatar/relay/token/v1`);
     }
-    xhr.setRequestHeader("Ocp-Apim-Subscription-Key", cogSvcSubKey)
+    xhr.setRequestHeader("Ocp-Apim-Subscription-Key", cogSvcSubKey);
     xhr.addEventListener("readystatechange", function() {
         if (this.readyState === 4) {
-            const responseData = JSON.parse(this.responseText)
-            const iceServerUrl = responseData.Urls[0]
-            const iceServerUsername = responseData.Username
-            const iceServerCredential = responseData.Password
-            setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential)
+            const responseData = JSON.parse(this.responseText);
+            const iceServerUrl = responseData.Urls[0];
+            const iceServerUsername = responseData.Username;
+            const iceServerCredential = responseData.Password;
+            setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential);
         }
-    })
-    xhr.send()
+    });
+    xhr.send();
 }
 
-// Disconnect from avatar service
 function disconnectAvatar() {
     if (avatarSynthesizer !== undefined) {
-        avatarSynthesizer.close()
+        avatarSynthesizer.close();
     }
-
     if (speechRecognizer !== undefined) {
-        speechRecognizer.stopContinuousRecognitionAsync()
-        speechRecognizer.close()
+        speechRecognizer.stopContinuousRecognitionAsync();
+        speechRecognizer.close();
     }
-
-    sessionActive = false
+    sessionActive = false;
 }
 
-// Setup WebRTC
 function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
-    // Create WebRTC peer connection
     peerConnection = new RTCPeerConnection({
         iceServers: [{
             urls: [ iceServerUrl ],
             username: iceServerUsername,
             credential: iceServerCredential
         }]
-    })
-
-    // Fetch WebRTC video stream and mount it to an HTML video element
+    });
     peerConnection.ontrack = function (event) {
         if (event.track.kind === 'audio') {
-            let audioElement = document.createElement('audio')
-            audioElement.id = 'audioPlayer'
-            audioElement.srcObject = event.streams[0]
-            audioElement.autoplay = false
+            let audioElement = document.createElement('audio');
+            audioElement.id = 'audioPlayer';
+            audioElement.srcObject = event.streams[0];
+            audioElement.autoplay = false;
             audioElement.addEventListener('loadeddata', () => {
-                audioElement.play()
-            })
-
+                audioElement.play();
+            });
             audioElement.onplaying = () => {
-                console.log(`WebRTC ${event.track.kind} channel connected.`)
-            }
-
-            // Clean up existing audio element if there is any
-            remoteVideoDiv = document.getElementById('remoteVideo')
+                console.log(`WebRTC ${event.track.kind} channel connected.`);
+            };
+            remoteVideoDiv = document.getElementById('remoteVideo');
             for (var i = 0; i < remoteVideoDiv.childNodes.length; i++) {
                 if (remoteVideoDiv.childNodes[i].localName === event.track.kind) {
-                    remoteVideoDiv.removeChild(remoteVideoDiv.childNodes[i])
+                    remoteVideoDiv.removeChild(remoteVideoDiv.childNodes[i]);
                 }
             }
-
-            // Append the new audio element
-            document.getElementById('remoteVideo').appendChild(audioElement)
+            document.getElementById('remoteVideo').appendChild(audioElement);
         }
-
         if (event.track.kind === 'video') {
-            let videoElement = document.createElement('video')
-            videoElement.id = 'videoPlayer'
-            videoElement.srcObject = event.streams[0]
-            videoElement.autoplay = false
+            let videoElement = document.createElement('video');
+            videoElement.id = 'videoPlayer';
+            videoElement.srcObject = event.streams[0];
+            videoElement.autoplay = false;
             videoElement.addEventListener('loadeddata', () => {
-                videoElement.play()
-            })
-
-            videoElement.playsInline = true
-            videoElement.style.width = '0.5px'
-            document.getElementById('remoteVideo').appendChild(videoElement)
-
-            // Continue speaking if there are unfinished sentences
+                videoElement.play();
+            });
+            videoElement.playsInline = true;
+            videoElement.style.width = '0.5px';
+            document.getElementById('remoteVideo').appendChild(videoElement);
             if (repeatSpeakingSentenceAfterReconnection) {
                 if (speakingText !== '') {
-                    speakNext(speakingText, 0, true)
+                    speakNext(speakingText, 0, true);
                 }
             } else {
                 if (spokenTextQueue.length > 0) {
-                    speakNext(spokenTextQueue.shift())
+                    speakNext(spokenTextQueue.shift());
                 }
             }
-
             videoElement.onplaying = () => {
-                // Clean up existing video element if there is any
-                remoteVideoDiv = document.getElementById('remoteVideo')
+                remoteVideoDiv = document.getElementById('remoteVideo');
                 for (var i = 0; i < remoteVideoDiv.childNodes.length; i++) {
                     if (remoteVideoDiv.childNodes[i].localName === event.track.kind) {
-                        remoteVideoDiv.removeChild(remoteVideoDiv.childNodes[i])
+                        remoteVideoDiv.removeChild(remoteVideoDiv.childNodes[i]);
                     }
                 }
-
-                // Append the new video element
-                videoElement.style.width = '960px'
-                document.getElementById('remoteVideo').appendChild(videoElement)
-
-                console.log(`WebRTC ${event.track.kind} channel connected.`)
-                document.getElementById('microphone').disabled = false
-                document.getElementById('stopSession').disabled = false
-                document.getElementById('remoteVideo').style.width = '960px'
-                document.getElementById('chatHistory').hidden = false
-                document.getElementById('showTypeMessage').disabled = false
-
+                videoElement.style.width = '960px';
+                document.getElementById('remoteVideo').appendChild(videoElement);
+                console.log(`WebRTC ${event.track.kind} channel connected.`);
+                document.getElementById('microphone').disabled = false;
+                document.getElementById('stopSession').disabled = false;
+                document.getElementById('remoteVideo').style.width = '960px';
+                document.getElementById('chatHistory').hidden = false;
+                document.getElementById('showTypeMessage').disabled = false;
                 if (document.getElementById('useLocalVideoForIdle').checked) {
-                    document.getElementById('localVideo').hidden = true
+                    document.getElementById('localVideo').hidden = true;
                     if (lastSpeakTime === undefined) {
-                        lastSpeakTime = new Date()
+                        lastSpeakTime = new Date();
                     }
                 }
-
-                isReconnecting = false
-                setTimeout(() => { sessionActive = true }, 5000) // Set session active after 5 seconds
-            }
+                isReconnecting = false;
+                setTimeout(() => { sessionActive = true; }, 5000);
+            };
         }
-    }
-    
-     // Listen to data channel, to get the event from the server
+    };
     peerConnection.addEventListener("datachannel", event => {
-        peerConnectionDataChannel = event.channel
+        peerConnectionDataChannel = event.channel;
         peerConnectionDataChannel.onmessage = e => {
-            let subtitles = document.getElementById('subtitles')
-            const webRTCEvent = JSON.parse(e.data)
+            let subtitles = document.getElementById('subtitles');
+            const webRTCEvent = JSON.parse(e.data);
             if (webRTCEvent.event.eventType === 'EVENT_TYPE_TURN_START' && document.getElementById('showSubtitles').checked) {
-                subtitles.hidden = false
-                subtitles.innerHTML = speakingText
+                subtitles.hidden = false;
+                subtitles.innerHTML = speakingText;
             } else if (webRTCEvent.event.eventType === 'EVENT_TYPE_SESSION_END' || webRTCEvent.event.eventType === 'EVENT_TYPE_SWITCH_TO_IDLE') {
-                subtitles.hidden = true
+                subtitles.hidden = true;
                 if (webRTCEvent.event.eventType === 'EVENT_TYPE_SESSION_END') {
                     if (document.getElementById('autoReconnectAvatar').checked && !userClosedSession && !isReconnecting) {
-                        // No longer reconnect when there is no interaction for a while
                         if (new Date() - lastInteractionTime < 300000) {
-                            // Session disconnected unexpectedly, need reconnect
-                            console.log(`[${(new Date()).toISOString()}] The WebSockets got disconnected, need reconnect.`)
-                            isReconnecting = true
-
-                            // Remove data channel onmessage callback to avoid duplicatedly triggering reconnect
-                            peerConnectionDataChannel.onmessage = null
-
-                            // Release the existing avatar connection
+                            console.log(`[${(new Date()).toISOString()}] The WebSockets got disconnected, need reconnect.`);
+                            isReconnecting = true;
+                            peerConnectionDataChannel.onmessage = null;
                             if (avatarSynthesizer !== undefined) {
-                                avatarSynthesizer.close()
+                                avatarSynthesizer.close();
                             }
-
-                            // Setup a new avatar connection
-                            connectAvatar()
+                            connectAvatar();
                         }
                     }
                 }
             }
-
-            console.log("[" + (new Date()).toISOString() + "] WebRTC event received: " + e.data)
-        }
-    })
-
-    // This is a workaround to make sure the data channel listening is working by creating a data channel from the client side
-    c = peerConnection.createDataChannel("eventChannel")
-
-    // Make necessary update to the web page when the connection state changes
+            console.log("[" + (new Date()).toISOString() + "] WebRTC event received: " + e.data);
+        };
+    });
+    c = peerConnection.createDataChannel("eventChannel");
     peerConnection.oniceconnectionstatechange = e => {
-        console.log("WebRTC status: " + peerConnection.iceConnectionState)
+        console.log("WebRTC status: " + peerConnection.iceConnectionState);
         if (peerConnection.iceConnectionState === 'disconnected') {
             if (document.getElementById('useLocalVideoForIdle').checked) {
-                document.getElementById('localVideo').hidden = false
-                document.getElementById('remoteVideo').style.width = '0.1px'
+                document.getElementById('localVideo').hidden = false;
+                document.getElementById('remoteVideo').style.width = '0.1px';
             }
         }
-    }
-
-    // Offer to receive 1 audio, and 1 video track
-    peerConnection.addTransceiver('video', { direction: 'sendrecv' })
-    peerConnection.addTransceiver('audio', { direction: 'sendrecv' })
-
-    // start avatar, establish WebRTC connection
+    };
+    peerConnection.addTransceiver('video', { direction: 'sendrecv' });
+    peerConnection.addTransceiver('audio', { direction: 'sendrecv' });
     avatarSynthesizer.startAvatarAsync(peerConnection).then((r) => {
         if (r.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
-            console.log("[" + (new Date()).toISOString() + "] Avatar started. Result ID: " + r.resultId)
+            console.log("[" + (new Date()).toISOString() + "] Avatar started. Result ID: " + r.resultId);
         } else {
-            console.log("[" + (new Date()).toISOString() + "] Unable to start avatar. Result ID: " + r.resultId)
+            console.log("[" + (new Date()).toISOString() + "] Unable to start avatar. Result ID: " + r.resultId);
             if (r.reason === SpeechSDK.ResultReason.Canceled) {
-                let cancellationDetails = SpeechSDK.CancellationDetails.fromResult(r)
+                let cancellationDetails = SpeechSDK.CancellationDetails.fromResult(r);
                 if (cancellationDetails.reason === SpeechSDK.CancellationReason.Error) {
-                    console.log(cancellationDetails.errorDetails)
-                };
-
+                    console.log(cancellationDetails.errorDetails);
+                }
                 console.log("Unable to start avatar: " + cancellationDetails.errorDetails);
             }
             document.getElementById('startSession').disabled = false;
@@ -314,376 +246,274 @@ function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
         }
     }).catch(
         (error) => {
-            console.log("[" + (new Date()).toISOString() + "] Avatar failed to start. Error: " + error)
-            document.getElementById('startSession').disabled = false
-            document.getElementById('configuration').hidden = false
+            console.log("[" + (new Date()).toISOString() + "] Avatar failed to start. Error: " + error);
+            document.getElementById('startSession').disabled = false;
+            document.getElementById('configuration').hidden = false;
         }
-    )
+    );
 }
 
-// Initialize messages
 function initMessages() {
-    messages = []
-
+    messages = [];
     if (dataSources.length === 0) {
-        let systemPrompt = document.getElementById('prompt').value
+        let systemPrompt = document.getElementById('prompt').value;
         let systemMessage = {
             role: 'system',
             content: systemPrompt
-        }
-
-        messages.push(systemMessage)
+        };
+        messages.push(systemMessage);
     }
 }
 
-// Set data sources for chat API
-function setDataSources(azureCogSearchEndpoint, azureCogSearchApiKey, azureCogSearchIndexName) {
-    let dataSource = {
-        type: 'AzureCognitiveSearch',
-        parameters: {
-            endpoint: azureCogSearchEndpoint,
-            key: azureCogSearchApiKey,
-            indexName: azureCogSearchIndexName,
-            semanticConfiguration: '',
-            queryType: 'simple',
-            fieldsMapping: {
-                contentFieldsSeparator: '\n',
-                contentFields: ['content'],
-                filepathField: null,
-                titleField: 'title',
-                urlField: null
-            },
-            inScope: true,
-            roleInformation: document.getElementById('prompt').value
-        }
-    }
-
-    dataSources.push(dataSource)
-}
-
-// Do HTML encoding on given text
 function htmlEncode(text) {
     const entityMap = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-      '/': '&#x2F;'
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;'
     };
-
-    return String(text).replace(/[&<>"'\/]/g, (match) => entityMap[match])
+    return String(text).replace(/[&<>"'\/]/g, (match) => entityMap[match]);
 }
 
-// Speak the given text
 function speak(text, endingSilenceMs = 0) {
     if (isSpeaking) {
-        spokenTextQueue.push(text)
-        return
+        spokenTextQueue.push(text);
+        return;
     }
-
-    speakNext(text, endingSilenceMs)
+    speakNext(text, endingSilenceMs);
 }
 
 function speakNext(text, endingSilenceMs = 0, skipUpdatingChatHistory = false) {
-    let ttsVoice = document.getElementById('ttsVoice').value
-     let ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='en-US'><voice name='${ttsVoice}'><mstts:leadingsilence-exact value='0'/>${htmlEncode(text)}</voice></speak>`
+    let ttsVoice = document.getElementById('ttsVoice').value;
+    let ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='en-US'><voice name='${ttsVoice}'><mstts:leadingsilence-exact value='0'/>${htmlEncode(text)}</voice></speak>`;
     if (endingSilenceMs > 0) {
-        ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='en-US'><voice name='${ttsVoice}'><mstts:leadingsilence-exact value='0'/>${htmlEncode(text)}<break time='${endingSilenceMs}ms' /></voice></speak>`
+        ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='en-US'><voice name='${ttsVoice}'><mstts:leadingsilence-exact value='0'/>${htmlEncode(text)}<break time='${endingSilenceMs}ms' /></voice></speak>`;
     }
-
     if (enableDisplayTextAlignmentWithSpeech && !skipUpdatingChatHistory) {
-        let chatHistoryTextArea = document.getElementById('chatHistory')
-        chatHistoryTextArea.innerHTML += text.replace(/\n/g, '<br/>')
-        chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight
+        let chatHistoryTextArea = document.getElementById('chatHistory');
+        chatHistoryTextArea.innerHTML += text.replace(/\n/g, '<br/>');
+        chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight;
     }
-
-    lastSpeakTime = new Date()
-    isSpeaking = true
-    speakingText = text
-    document.getElementById('stopSpeaking').disabled = false
+    lastSpeakTime = new Date();
+    isSpeaking = true;
+    speakingText = text;
+    document.getElementById('stopSpeaking').disabled = false;
     avatarSynthesizer.speakSsmlAsync(ssml).then(
         (result) => {
             if (result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
-                console.log(`Speech synthesized to speaker for text [ ${text} ]. Result ID: ${result.resultId}`)
-                lastSpeakTime = new Date()
+                console.log(`Speech synthesized to speaker for text [ ${text} ]. Result ID: ${result.resultId}`);
+                lastSpeakTime = new Date();
             } else {
-                console.log(`Error occurred while speaking the SSML. Result ID: ${result.resultId}`)
+                console.log(`Error occurred while speaking the SSML. Result ID: ${result.resultId}`);
             }
-
-            speakingText = ''
-
+            speakingText = '';
             if (spokenTextQueue.length > 0) {
-                speakNext(spokenTextQueue.shift())
+                speakNext(spokenTextQueue.shift());
             } else {
-                isSpeaking = false
-                document.getElementById('stopSpeaking').disabled = true
+                isSpeaking = false;
+                document.getElementById('stopSpeaking').disabled = true;
             }
         }).catch(
             (error) => {
-                console.log(`Error occurred while speaking the SSML: [ ${error} ]`)
-
-                speakingText = ''
-
+                console.log(`Error occurred while speaking the SSML: [ ${error} ]`);
+                speakingText = '';
                 if (spokenTextQueue.length > 0) {
-                    speakNext(spokenTextQueue.shift())
+                    speakNext(spokenTextQueue.shift());
                 } else {
-                    isSpeaking = false
-                    document.getElementById('stopSpeaking').disabled = true
+                    isSpeaking = false;
+                    document.getElementById('stopSpeaking').disabled = true;
                 }
             }
-        )
+        );
 }
 
 function stopSpeaking() {
-    lastInteractionTime = new Date()
-    spokenTextQueue = []
+    lastInteractionTime = new Date();
+    spokenTextQueue = [];
     avatarSynthesizer.stopSpeakingAsync().then(
         () => {
-            isSpeaking = false
-            document.getElementById('stopSpeaking').disabled = true
-            console.log("[" + (new Date()).toISOString() + "] Stop speaking request sent.")
+            isSpeaking = false;
+            document.getElementById('stopSpeaking').disabled = true;
+            console.log("[" + (new Date()).toISOString() + "] Stop speaking request sent.");
         }
     ).catch(
         (error) => {
-            console.log("Error occurred while stopping speaking: " + error)
+            console.log("Error occurred while stopping speaking: " + error);
         }
-    )
+    );
 }
 
-// NEW: Updated handleUserQuery function for Assistant API
+// =================================================================================
+// ===== ИЗМЕНЕННАЯ СЕКЦИЯ ДЛЯ РАБОТЫ С ПРОКСИ-СЕРВЕРОМ =====
+// =================================================================================
+
 function handleUserQuery(userQuery, userQueryHTML, imgUrlPath) {
-    lastInteractionTime = new Date()
+    lastInteractionTime = new Date();
     
-    // Display user query
-    let chatHistoryTextArea = document.getElementById('chatHistory')
+    let chatHistoryTextArea = document.getElementById('chatHistory');
     if (chatHistoryTextArea.innerHTML !== '' && !chatHistoryTextArea.innerHTML.endsWith('\n\n')) {
-        chatHistoryTextArea.innerHTML += '\n\n'
+        chatHistoryTextArea.innerHTML += '\n\n';
     }
-
     chatHistoryTextArea.innerHTML += imgUrlPath.trim() ? "<br/><br/>User: " + userQueryHTML : "<br/><br/>User: " + userQuery + "<br/>";
-    chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight
+    chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight;
 
-    // Stop previous speaking if there is any
     if (isSpeaking) {
-        stopSpeaking()
+        stopSpeaking();
     }
 
-    const azureOpenAIEndpoint = document.getElementById('azureOpenAIEndpoint').value
-    const azureOpenAIApiKey = document.getElementById('azureOpenAIApiKey').value
-
-    // Create thread if it doesn't exist
     if (!threadId) {
-        createThread(azureOpenAIEndpoint, azureOpenAIApiKey, userQuery);
+        createThread(userQuery);
     } else {
-        // Add message to existing thread
-        addMessageToThread(azureOpenAIEndpoint, azureOpenAIApiKey, userQuery);
+        addMessageToThread(userQuery);
     }
 }
 
-// NEW: Assistant API functions
-async function createThread(endpoint, apiKey, userQuery) {
+async function createThread(userQuery) {
     try {
-        // Create thread
-        const threadResponse = await fetch(`${endpoint}/openai/threads?api-version=2024-05-01-preview`, {
+        const response = await fetch(`/api/threads`, {
             method: 'POST',
-            headers: {
-                'api-key': apiKey,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                messages: [{
-                    role: 'user',
-                    content: userQuery
-                }]
+                messages: [{ role: 'user', content: userQuery }]
             })
         });
-
-        const thread = await threadResponse.json();
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Proxy error: ${errorData.error || response.statusText}`);
+        }
+        const thread = await response.json();
         threadId = thread.id;
-        console.log('Thread created:', threadId);
-
-        // Run assistant
-        runAssistant(endpoint, apiKey);
-
+        console.log('Thread created via proxy:', threadId);
+        runAssistant();
     } catch (error) {
         console.error('Error creating thread:', error);
         displayError('Ошибка создания беседы');
     }
 }
 
-async function addMessageToThread(endpoint, apiKey, userQuery) {
+async function addMessageToThread(userQuery) {
     try {
-        // Add message to thread
-        await fetch(`${endpoint}/openai/threads/${threadId}/messages?api-version=2024-05-01-preview`, {
+        const response = await fetch(`/api/threads/${threadId}/messages`, {
             method: 'POST',
-            headers: {
-                'api-key': apiKey,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                role: 'user',
-                content: userQuery
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'user', content: userQuery })
         });
-
-        console.log('Message added to thread');
-
-        // Run assistant
-        runAssistant(endpoint, apiKey);
-
+        if (!response.ok) throw new Error('Failed to add message');
+        console.log('Message added to thread via proxy');
+        runAssistant();
     } catch (error) {
         console.error('Error adding message:', error);
         displayError('Ошибка отправки сообщения');
     }
 }
 
-async function runAssistant(endpoint, apiKey) {
+async function runAssistant() {
     try {
-        // Run assistant
-        const runResponse = await fetch(`${endpoint}/openai/threads/${threadId}/runs?api-version=2024-05-01-preview`, {
+        const response = await fetch(`/api/threads/${threadId}/runs`, {
             method: 'POST',
-            headers: {
-                'api-key': apiKey,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                assistant_id: assistantId
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assistant_id: assistantId })
         });
-
-        const run = await runResponse.json();
+        if (!response.ok) throw new Error('Failed to run assistant');
+        const run = await response.json();
         runId = run.id;
-        console.log('Assistant run started:', runId);
-
-        // Check run status
-        checkRunStatus(endpoint, apiKey);
-
+        console.log('Assistant run started via proxy:', runId);
+        checkRunStatus();
     } catch (error) {
         console.error('Error running assistant:', error);
         displayError('Ошибка запуска ассистента');
     }
 }
 
-async function checkRunStatus(endpoint, apiKey) {
+async function checkRunStatus() {
     try {
-        const statusResponse = await fetch(`${endpoint}/openai/threads/${threadId}/runs/${runId}?api-version=2024-05-01-preview`, {
-            method: 'GET',
-            headers: {
-                'api-key': apiKey
-            }
-        });
-
-        const status = await statusResponse.json();
+        const response = await fetch(`/api/threads/${threadId}/runs/${runId}`);
+        if (!response.ok) throw new Error('Failed to check run status');
+        const status = await response.json();
         console.log('Run status:', status.status);
         
         if (status.status === 'completed') {
-            // Get assistant response
-            getAssistantResponse(endpoint, apiKey);
+            getAssistantResponse();
         } else if (status.status === 'requires_action') {
-            // Handle function calls
-            console.log('Function calls required:', status.required_action.submit_tool_outputs.tool_calls);
-            handleFunctionCalls(endpoint, apiKey, status.required_action.submit_tool_outputs.tool_calls);
+            handleFunctionCalls(status.required_action.submit_tool_outputs.tool_calls);
         } else if (status.status === 'failed') {
             console.error('Assistant run failed:', status.last_error);
             displayError('Ошибка выполнения запроса');
         } else {
-            // Continue checking status
-            setTimeout(() => checkRunStatus(endpoint, apiKey), 1000);
+            setTimeout(checkRunStatus, 2000);
         }
-
     } catch (error) {
         console.error('Error checking status:', error);
         displayError('Ошибка проверки статуса');
     }
 }
 
-async function handleFunctionCalls(endpoint, apiKey, toolCalls) {
+async function handleFunctionCalls(toolCalls) {
     const toolOutputs = [];
-
     for (const toolCall of toolCalls) {
         if (toolCall.type === 'function') {
             try {
-                console.log('Calling function:', toolCall.function.name, toolCall.function.arguments);
-                
-                // Call our Railway API
+                console.log('Calling function via endpoint:', toolCall.function.name, toolCall.function.arguments);
                 const functionResponse = await fetch(functionCallsEndpoint, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         function_name: toolCall.function.name,
                         arguments: JSON.parse(toolCall.function.arguments)
                     })
                 });
-
                 const result = await functionResponse.json();
                 console.log('Function result:', result);
-                
                 toolOutputs.push({
                     tool_call_id: toolCall.id,
-                    output: result.success ? result.result : `Error: ${result.error}`
+                    output: JSON.stringify(result.success ? result.result : { error: result.error })
                 });
-
             } catch (error) {
                 console.error('Error calling function:', error);
                 toolOutputs.push({
                     tool_call_id: toolCall.id,
-                    output: `Error: ${error.message}`
+                    output: JSON.stringify({ error: error.message })
                 });
             }
         }
     }
-
-    // Submit tool outputs back to Assistant
-    submitToolOutputs(endpoint, apiKey, toolOutputs);
+    submitToolOutputs(toolOutputs);
 }
 
-async function submitToolOutputs(endpoint, apiKey, toolOutputs) {
+async function submitToolOutputs(toolOutputs) {
     try {
-        console.log('Submitting tool outputs:', toolOutputs);
-        
-        await fetch(`${endpoint}/openai/threads/${threadId}/runs/${runId}/submit_tool_outputs?api-version=2024-05-01-preview`, {
+        const response = await fetch(`/api/threads/${threadId}/runs/${runId}/submit_tool_outputs`, {
             method: 'POST',
-            headers: {
-                'api-key': apiKey,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                tool_outputs: toolOutputs
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tool_outputs: toolOutputs })
         });
-
-        // Continue checking status
-        setTimeout(() => checkRunStatus(endpoint, apiKey), 1000);
-
+        if (!response.ok) throw new Error('Failed to submit tool outputs');
+        console.log('Submitted tool outputs successfully');
+        setTimeout(checkRunStatus, 1000);
     } catch (error) {
         console.error('Error submitting tool outputs:', error);
         displayError('Ошибка отправки результатов');
     }
 }
 
-async function getAssistantResponse(endpoint, apiKey) {
+async function getAssistantResponse() {
     try {
-        const messagesResponse = await fetch(`${endpoint}/openai/threads/${threadId}/messages?api-version=2024-05-01-preview`, {
-            method: 'GET',
-            headers: {
-                'api-key': apiKey
-            }
-        });
-
-        const messages = await messagesResponse.json();
-        const assistantMessage = messages.data.find(msg => msg.role === 'assistant' && msg.run_id === runId);
+        const response = await fetch(`/api/threads/${threadId}/messages`);
+        if (!response.ok) throw new Error('Failed to get messages');
+        const messagesData = await response.json();
+        const assistantMessage = messagesData.data.find(msg => msg.role === 'assistant' && msg.run_id === runId);
         
         if (assistantMessage && assistantMessage.content[0]) {
             const responseText = assistantMessage.content[0].text.value;
             console.log('Assistant response:', responseText);
             displayAndSpeakResponse(responseText);
         } else {
-            displayError('Не удалось получить ответ ассистента');
+            const lastAssistantMessage = messagesData.data.find(msg => msg.role === 'assistant');
+            if (lastAssistantMessage && lastAssistantMessage.content[0]) {
+                const responseText = lastAssistantMessage.content[0].text.value;
+                console.log('Assistant response (fallback):', responseText);
+                displayAndSpeakResponse(responseText);
+            } else {
+                displayError('Не удалось получить ответ ассистента');
+            }
         }
-
     } catch (error) {
         console.error('Error getting response:', error);
         displayError('Ошибка получения ответа');
@@ -691,260 +521,236 @@ async function getAssistantResponse(endpoint, apiKey) {
 }
 
 function displayAndSpeakResponse(text) {
-    let chatHistoryTextArea = document.getElementById('chatHistory')
-    chatHistoryTextArea.innerHTML += '<br/>Assistant: ' + text.replace(/\n/g, '<br/>') + '<br/>';
-    chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight;
-
-    // Speak response
+    let chatHistoryTextArea = document.getElementById('chatHistory');
+    //chatHistoryTextArea.innerHTML += '<br/>Assistant: ' + text.replace(/\n/g, '<br/>') + '<br/>';
+    //chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight;
+    
+    // Вывод текста в чат перенесен в функцию speakNext, чтобы текст появлялся синхронно с речью
+    // А здесь мы просто вызываем озвучку
     speak(text);
 }
 
 function displayError(message) {
-    let chatHistoryTextArea = document.getElementById('chatHistory')
+    let chatHistoryTextArea = document.getElementById('chatHistory');
     chatHistoryTextArea.innerHTML += '<br/><span style="color: red;">Error: ' + message + '</span><br/>';
     chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight;
 }
 
-function getQuickReply() {
-    return quickReplies[Math.floor(Math.random() * quickReplies.length)]
-}
+// =================================================================================
+// ===== КОНЕЦ ИЗМЕНЕННОЙ СЕКЦИИ =====
+// =================================================================================
+
+
+// --- ОСТАЛЬНЫЕ ФУНКЦИИ БЕЗ ИЗМЕНЕНИЙ ---
 
 function checkHung() {
-    // Check whether the avatar video stream is hung, by checking whether the video time is advancing
-    let videoElement = document.getElementById('videoPlayer')
+    let videoElement = document.getElementById('videoPlayer');
     if (videoElement !== null && videoElement !== undefined && sessionActive) {
-        let videoTime = videoElement.currentTime
+        let videoTime = videoElement.currentTime;
         setTimeout(() => {
-            // Check whether the video time is advancing
             if (videoElement.currentTime === videoTime) {
-                // Check whether the session is active to avoid duplicatedly triggering reconnect
                 if (sessionActive) {
-                    sessionActive = false
+                    sessionActive = false;
                     if (document.getElementById('autoReconnectAvatar').checked) {
-                        // No longer reconnect when there is no interaction for a while
                         if (new Date() - lastInteractionTime < 300000) {
-                            console.log(`[${(new Date()).toISOString()}] The video stream got disconnected, need reconnect.`)
-                            isReconnecting = true
-                            // Remove data channel onmessage callback to avoid duplicatedly triggering reconnect
-                            peerConnectionDataChannel.onmessage = null
-                            // Release the existing avatar connection
+                            console.log(`[${(new Date()).toISOString()}] The video stream got disconnected, need reconnect.`);
+                            isReconnecting = true;
+                            peerConnectionDataChannel.onmessage = null;
                             if (avatarSynthesizer !== undefined) {
-                                avatarSynthesizer.close()
+                                avatarSynthesizer.close();
                             }
-    
-                            // Setup a new avatar connection
-                            connectAvatar()
+                            connectAvatar();
                         }
                     }
                 }
             }
-        }, 2000)
+        }, 2000);
     }
 }
 
 function checkLastSpeak() {
     if (lastSpeakTime === undefined) {
-        return
+        return;
     }
-
-    let currentTime = new Date()
+    let currentTime = new Date();
     if (currentTime - lastSpeakTime > 15000) {
         if (document.getElementById('useLocalVideoForIdle').checked && sessionActive && !isSpeaking) {
-            disconnectAvatar()
-            document.getElementById('localVideo').hidden = false
-            document.getElementById('remoteVideo').style.width = '0.1px'
-            sessionActive = false
+            disconnectAvatar();
+            document.getElementById('localVideo').hidden = false;
+            document.getElementById('remoteVideo').style.width = '0.1px';
+            sessionActive = false;
         }
     }
 }
 
 window.onload = () => {
     setInterval(() => {
-        checkHung()
-        checkLastSpeak()
-    }, 2000) // Check session activity every 2 seconds
-}
+        checkHung();
+        checkLastSpeak();
+    }, 2000);
+};
 
 window.startSession = () => {
-    lastInteractionTime = new Date()
+    lastInteractionTime = new Date();
     if (document.getElementById('useLocalVideoForIdle').checked) {
-        document.getElementById('startSession').disabled = true
-        document.getElementById('configuration').hidden = true
-        document.getElementById('microphone').disabled = false
-        document.getElementById('stopSession').disabled = false
-        document.getElementById('localVideo').hidden = false
-        document.getElementById('remoteVideo').style.width = '0.1px'
-        document.getElementById('chatHistory').hidden = false
-        document.getElementById('showTypeMessage').disabled = false
-        return
+        document.getElementById('startSession').disabled = true;
+        document.getElementById('configuration').hidden = true;
+        document.getElementById('microphone').disabled = false;
+        document.getElementById('stopSession').disabled = false;
+        document.getElementById('localVideo').hidden = false;
+        document.getElementById('remoteVideo').style.width = '0.1px';
+        document.getElementById('chatHistory').hidden = false;
+        document.getElementById('showTypeMessage').disabled = false;
+        return;
     }
-
-    userClosedSession = false
-    connectAvatar()
-}
+    userClosedSession = false;
+    connectAvatar();
+};
 
 window.stopSession = () => {
-    lastInteractionTime = new Date()
-    document.getElementById('startSession').disabled = false
-    document.getElementById('microphone').disabled = true
-    document.getElementById('stopSession').disabled = true
-    document.getElementById('configuration').hidden = false
-    document.getElementById('chatHistory').hidden = true
-    document.getElementById('showTypeMessage').checked = false
-    document.getElementById('showTypeMessage').disabled = true
-    document.getElementById('userMessageBox').hidden = true
-    document.getElementById('uploadImgIcon').hidden = true
+    lastInteractionTime = new Date();
+    document.getElementById('startSession').disabled = false;
+    document.getElementById('microphone').disabled = true;
+    document.getElementById('stopSession').disabled = true;
+    document.getElementById('configuration').hidden = false;
+    document.getElementById('chatHistory').hidden = true;
+    document.getElementById('showTypeMessage').checked = false;
+    document.getElementById('showTypeMessage').disabled = true;
+    document.getElementById('userMessageBox').hidden = true;
+    document.getElementById('uploadImgIcon').hidden = true;
     if (document.getElementById('useLocalVideoForIdle').checked) {
-        document.getElementById('localVideo').hidden = true
+        document.getElementById('localVideo').hidden = true;
     }
-
-    userClosedSession = true
-    threadId = null // Reset thread when session ends
-    runId = null
-    disconnectAvatar()
-}
+    userClosedSession = true;
+    threadId = null; 
+    runId = null;
+    disconnectAvatar();
+};
 
 window.clearChatHistory = () => {
-    lastInteractionTime = new Date()
-    document.getElementById('chatHistory').innerHTML = ''
-    threadId = null // Reset thread to start fresh conversation
-    runId = null
-    initMessages()
-}
+    lastInteractionTime = new Date();
+    document.getElementById('chatHistory').innerHTML = '';
+    threadId = null;
+    runId = null;
+    initMessages();
+};
 
 window.microphone = () => {
-    lastInteractionTime = new Date()
+    lastInteractionTime = new Date();
     if (document.getElementById('microphone').innerHTML === 'Stop Microphone') {
-        // Stop microphone
-        document.getElementById('microphone').disabled = true
+        document.getElementById('microphone').disabled = true;
         speechRecognizer.stopContinuousRecognitionAsync(
             () => {
-                document.getElementById('microphone').innerHTML = 'Start Microphone'
-                document.getElementById('microphone').disabled = false
+                document.getElementById('microphone').innerHTML = 'Start Microphone';
+                document.getElementById('microphone').disabled = false;
             }, (err) => {
-                console.log("Failed to stop continuous recognition:", err)
-                document.getElementById('microphone').disabled = false
-            })
-
-        return
+                console.log("Failed to stop continuous recognition:", err);
+                document.getElementById('microphone').disabled = false;
+            });
+        return;
     }
-
     if (document.getElementById('useLocalVideoForIdle').checked) {
         if (!sessionActive) {
-            connectAvatar()
+            connectAvatar();
         }
-
         setTimeout(() => {
-            document.getElementById('audioPlayer').play()
-        }, 5000)
+            document.getElementById('audioPlayer').play();
+        }, 5000);
     } else {
-        document.getElementById('audioPlayer').play()
+        document.getElementById('audioPlayer').play();
     }
-
-    document.getElementById('microphone').disabled = true
+    document.getElementById('microphone').disabled = true;
     speechRecognizer.recognized = async (s, e) => {
         if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
-            let userQuery = e.result.text.trim()
+            let userQuery = e.result.text.trim();
             if (userQuery === '') {
-                return
+                return;
             }
-
-            // Auto stop microphone when a phrase is recognized, when it's not continuous conversation mode
             if (!document.getElementById('continuousConversation').checked) {
-                document.getElementById('microphone').disabled = true
+                document.getElementById('microphone').disabled = true;
                 speechRecognizer.stopContinuousRecognitionAsync(
                     () => {
-                        document.getElementById('microphone').innerHTML = 'Start Microphone'
-                        document.getElementById('microphone').disabled = false
+                        document.getElementById('microphone').innerHTML = 'Start Microphone';
+                        document.getElementById('microphone').disabled = false;
                     }, (err) => {
-                        console.log("Failed to stop continuous recognition:", err)
-                        document.getElementById('microphone').disabled = false
-                    })
+                        console.log("Failed to stop continuous recognition:", err);
+                        document.getElementById('microphone').disabled = false;
+                    });
             }
-
-            handleUserQuery(userQuery,"","")
+            handleUserQuery(userQuery, "", "");
         }
-    }
-
+    };
     speechRecognizer.startContinuousRecognitionAsync(
         () => {
-            document.getElementById('microphone').innerHTML = 'Stop Microphone'
-            document.getElementById('microphone').disabled = false
+            document.getElementById('microphone').innerHTML = 'Stop Microphone';
+            document.getElementById('microphone').disabled = false;
         }, (err) => {
-            console.log("Failed to start continuous recognition:", err)
-            document.getElementById('microphone').disabled = false
-        })
-}
-
-window.updataEnableOyd = () => {
-    if (document.getElementById('enableOyd').checked) {
-        document.getElementById('cogSearchConfig').hidden = false
-    } else {
-        document.getElementById('cogSearchConfig').hidden = true
-    }
-}
+            console.log("Failed to start continuous recognition:", err);
+            document.getElementById('microphone').disabled = false;
+        });
+};
 
 window.updateTypeMessageBox = () => {
     if (document.getElementById('showTypeMessage').checked) {
-        document.getElementById('userMessageBox').hidden = false
-        document.getElementById('uploadImgIcon').hidden = false
+        document.getElementById('userMessageBox').hidden = false;
+        document.getElementById('uploadImgIcon').hidden = false;
         document.getElementById('userMessageBox').addEventListener('keyup', (e) => {
             if (e.key === 'Enter') {
-                const userQuery = document.getElementById('userMessageBox').innerText
-                const messageBox = document.getElementById('userMessageBox')
-                const childImg = messageBox.querySelector("#picInput")
+                const userQuery = document.getElementById('userMessageBox').innerText;
+                const messageBox = document.getElementById('userMessageBox');
+                const childImg = messageBox.querySelector("#picInput");
                 if (childImg) {
-                    childImg.style.width = "200px"
-                    childImg.style.height = "200px"
+                    childImg.style.width = "200px";
+                    childImg.style.height = "200px";
                 }
-                let userQueryHTML = messageBox.innerHTML.trim("")
+                let userQueryHTML = messageBox.innerHTML.trim("");
                 if(userQueryHTML.startsWith('<img')){
-                    userQueryHTML="<br/>"+userQueryHTML
+                    userQueryHTML="<br/>"+userQueryHTML;
                 }
                 if (userQuery !== '') {
-                    handleUserQuery(userQuery.trim(''), userQueryHTML, imgUrl)
-                    document.getElementById('userMessageBox').innerHTML = ''
-                    imgUrl = ""
+                    handleUserQuery(userQuery.trim(''), userQueryHTML, imgUrl);
+                    document.getElementById('userMessageBox').innerHTML = '';
+                    imgUrl = "";
                 }
             }
-        })
+        });
         document.getElementById('uploadImgIcon').addEventListener('click', function() {
-            imgUrl = "https://wallpaperaccess.com/full/528436.jpg"
+            imgUrl = "https://wallpaperaccess.com/full/528436.jpg";
             const userMessage = document.getElementById("userMessageBox");
             const childImg = userMessage.querySelector("#picInput");
             if (childImg) {
-                userMessage.removeChild(childImg)
+                userMessage.removeChild(childImg);
             }
-            userMessage.innerHTML+='<br/><img id="picInput" src="https://wallpaperaccess.com/full/528436.jpg" style="width:100px;height:100px"/><br/><br/>'   
+            userMessage.innerHTML+='<br/><img id="picInput" src="https://wallpaperaccess.com/full/528436.jpg" style="width:100px;height:100px"/><br/><br/>';   
         });
     } else {
-        document.getElementById('userMessageBox').hidden = true
-        document.getElementById('uploadImgIcon').hidden = true
-        imgUrl = ""
+        document.getElementById('userMessageBox').hidden = true;
+        document.getElementById('uploadImgIcon').hidden = true;
+        imgUrl = "";
     }
-}
+};
 
 window.updateLocalVideoForIdle = () => {
     if (document.getElementById('useLocalVideoForIdle').checked) {
-        document.getElementById('showTypeMessageCheckbox').hidden = true
+        document.getElementById('showTypeMessageCheckbox').hidden = true;
     } else {
-        document.getElementById('showTypeMessageCheckbox').hidden = false
+        document.getElementById('showTypeMessageCheckbox').hidden = false;
     }
-}
+};
 
 window.updatePrivateEndpoint = () => {
     if (document.getElementById('enablePrivateEndpoint').checked) {
-        document.getElementById('showPrivateEndpointCheckBox').hidden = false
+        document.getElementById('showPrivateEndpointCheckBox').hidden = false;
     } else {
-        document.getElementById('showPrivateEndpointCheckBox').hidden = true
+        document.getElementById('showPrivateEndpointCheckBox').hidden = true;
     }
-}
+};
 
 window.updateCustomAvatarBox = () => {
     if (document.getElementById('customizedAvatar').checked) {
-        document.getElementById('useBuiltInVoice').disabled = false
+        document.getElementById('useBuiltInVoice').disabled = false;
     } else {
-        document.getElementById('useBuiltInVoice').disabled = true
-        document.getElementById('useBuiltInVoice').checked = false
+        document.getElementById('useBuiltInVoice').disabled = true;
+        document.getElementById('useBuiltInVoice').checked = false;
     }
-}
+};
