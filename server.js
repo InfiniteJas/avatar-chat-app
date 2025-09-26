@@ -19,7 +19,7 @@ const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
 const SERPAPI_API_KEY = "5b428af6a0a873bbd5d882ce73d5b2aa95e16db84fecebeef032ba7ea7fd47fb";
 
 // Возвращаем оригинальный DB webhook
-const DB_WEBHOOK_URL = "http://100.70.129.186/webhook/f305536a-f827-4c38-9b72-ace15bf3f3c1";
+const DB_WEBHOOK_URL = "https://gshsh.nitec-ai.kz/webhook/f305536a-f827-4c38-9b72-ace15bf3f3c1";
 
 app.use(cors());
 app.use(express.json());
