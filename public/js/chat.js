@@ -25,7 +25,7 @@ var lastSpeakTime;
 var imgUrl = "";
 
 // Assistant API variables
-var assistantId = 'asst_LMHsNbIhuLgYt9I2RpMfm3Kr'; // ID вашего ассистента
+var assistantId = 'asst_LMHsNblhuLgYt9I2RpMfm3Kr'; // ID вашего ассистента
 var threadId = null;
 var runId = null;
 var functionCallsEndpoint = '/api/assistant'; // Используем относительный путь к своему же серверу
