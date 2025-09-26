@@ -730,6 +730,13 @@ function checkLastSpeak() {
 }
 
 window.onload = () => {
+    // Автозапуск через 2 секунды после загрузки страницы
+    setTimeout(() => {
+        if (confirm("Запустить аватар автоматически?")) {
+            window.startSession();
+        }
+    }, 2000);
+    
     setInterval(() => {
         checkHung();
         checkLastSpeak();
