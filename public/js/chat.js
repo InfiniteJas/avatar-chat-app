@@ -319,7 +319,12 @@ function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
                 }
             } else {
                 if (spokenTextQueue.length > 0) {
-                    speakNext(spokenTextQueue.shift());
+                    const nextItem = spokenTextQueue.shift();
+                    if (typeof nextItem === 'object') {
+                        displayAndSpeakResponse(nextItem.text, nextItem.lang);
+                    } else {
+                        speakNext(nextItem);
+                    }
                 }
             }
             videoElement.onplaying = () => {
@@ -461,7 +466,12 @@ function speakNext(text, endingSilenceMs = 0, skipUpdatingChatHistory = false) {
             }
             speakingText = '';
             if (spokenTextQueue.length > 0) {
-                speakNext(spokenTextQueue.shift());
+                const nextItem = spokenTextQueue.shift();
+                if (typeof nextItem === 'object') {
+                    displayAndSpeakResponse(nextItem.text, nextItem.lang);
+                } else {
+                    speakNext(nextItem);
+                }
             } else {
                 isSpeaking = false;
                 document.getElementById('stopSpeaking').disabled = true;
@@ -471,7 +481,12 @@ function speakNext(text, endingSilenceMs = 0, skipUpdatingChatHistory = false) {
                 console.log(`Error occurred while speaking the SSML: [ ${error} ]`);
                 speakingText = '';
                 if (spokenTextQueue.length > 0) {
-                    speakNext(spokenTextQueue.shift());
+                    const nextItem = spokenTextQueue.shift();
+                    if (typeof nextItem === 'object') {
+                        displayAndSpeakResponse(nextItem.text, nextItem.lang);
+                    } else {
+                        speakNext(nextItem);
+                    }
                 } else {
                     isSpeaking = false;
                     document.getElementById('stopSpeaking').disabled = true;
@@ -502,7 +517,7 @@ function handleUserQuery(userQuery, userQueryHTML = "", imgUrlPath = "", languag
 
     // 🎯 СОХРАНЯЕМ ВЫБРАННЫЙ ЯЗЫК
     selectedLanguage = language;
-    console.log(`🌍 Пользователь выбрал язык: ${selectedLanguage}`);
+    console.log(`🌐 Пользователь выбрал язык: ${selectedLanguage}`);
     console.log(`🗣️ Пользователь сказал: "${userQuery}"`);
 
     if (isSpeaking) {
@@ -702,19 +717,16 @@ function cleanTextForTTS(rawText, lang) {
     t = t.replace(/\?{2,}/g, '?');
     t = t.replace(/\s+/g, ' ').trim();
     
-    console.log(`🧹 Очистка текста (${lang}): "${rawText}" → "${t}"`);
+    console.log(`🧹 Очистка текста (${lang}): "${rawText.substring(0, 50)}..." → "${t.substring(0, 50)}..."`);
     return t;
 }
 
-// 🎯 ГЛАВНАЯ ФУНКЦИЯ: Озвучка с выбранным языком
+// 🎯 ИСПРАВЛЕННАЯ ГЛАВНАЯ ФУНКЦИЯ: Озвучка с выбранным языком
 function displayAndSpeakResponse(text, language) {
-    let finalText = text;
-
-    // Убрали приветствие - сразу используем полученный текст
-    console.log(`🌍 Используем выбранный язык: ${language}`);
+    console.log(`🌐 Используем выбранный язык: ${language}`);
 
     // Очистка текста
-    const cleaned = cleanTextForTTS(finalText, language);
+    const cleaned = cleanTextForTTS(text, language);
 
     // 🎯 ВЫБОР ГОЛОСА ПО ЯЗЫКУ
     let ttsVoice, xmlLang;
@@ -726,10 +738,10 @@ function displayAndSpeakResponse(text, language) {
         xmlLang = "ru-RU";
     }
 
-    // Обновляем значение в UI
-    document.getElementById('ttsVoice').value = ttsVoice;
+    // 🚫 НЕ ОБНОВЛЯЕМ UI ПОЛЕ - это создавало конфликт
+    // document.getElementById('ttsVoice').value = ttsVoice;
 
-    // Собираем SSML
+    // Собираем SSML с правильным языком
     const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='${xmlLang}'>
         <voice name='${ttsVoice}'><mstts:leadingsilence-exact value='0'/>${htmlEncode(cleaned)}</voice>
     </speak>`;
@@ -745,12 +757,20 @@ function displayAndSpeakResponse(text, language) {
     speakingText = cleaned;
     document.getElementById('stopSpeaking').disabled = false;
 
-    console.log(`🔊 Voice: ${ttsVoice}, Lang: ${language}`);
-    console.log(`🗣️ TTS text: "${cleaned}"`);
+    console.log(`🔊 Voice: ${ttsVoice}, Lang: ${xmlLang}, Selected: ${language}`);
+    console.log(`🗣️ TTS text: "${cleaned.substring(0, 50)}..."`);
 
     avatarSynthesizer.speakSsmlAsync(ssml).then(
-        () => {
+        (result) => {
+            if (result.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
+                console.log(`✅ Успешный синтез речи. Voice: ${ttsVoice}, Lang: ${xmlLang}`);
+                lastSpeakTime = new Date();
+            } else {
+                console.log(`❌ Ошибка синтеза речи. Result ID: ${result.resultId}`);
+            }
+
             speakingText = '';
+            
             if (spokenTextQueue.length > 0) {
                 const nextItem = spokenTextQueue.shift();
                 displayAndSpeakResponse(nextItem.text, nextItem.lang);
@@ -760,8 +780,9 @@ function displayAndSpeakResponse(text, language) {
             }
         }
     ).catch((error) => {
-        console.error("Ошибка синтеза речи:", error);
+        console.error("❌ Ошибка синтеза речи:", error);
         speakingText = '';
+        
         if (spokenTextQueue.length > 0) {
             const nextItem = spokenTextQueue.shift();
             displayAndSpeakResponse(nextItem.text, nextItem.lang);
@@ -871,7 +892,7 @@ function startMicrophone(language) {
         console.log("Recognition canceled:", e);
     };
 
-    // ⏹ конец сессии — здесь ничего не шлём; отправление делаем ТОЛЬКО в ветке Stop выше
+    // ❌ конец сессии — здесь ничего не шлём; отправление делаем ТОЛЬКО в ветке Stop выше
     speechRecognizer.sessionStopped = (s, e) => {
         console.log("Recognition session stopped");
     };
@@ -959,6 +980,10 @@ window.startSession = () => {
 
 window.stopSession = () => {
     lastInteractionTime = new Date();
+    
+    // Сбрасываем язык на русский по умолчанию
+    selectedLanguage = "ru";
+    
     document.getElementById('startSession').disabled = false;
     document.getElementById('microphoneRussian').disabled = true;
     document.getElementById('microphoneKazakh').disabled = true;
@@ -977,6 +1002,8 @@ window.stopSession = () => {
     disconnectAvatar();
     const list = document.getElementById('chatHistoryList');
     if (list) list.innerHTML = '';
+    
+    console.log("🔄 Сессия завершена, язык сброшен на: ru");
 };
 
 window.clearChatHistory = () => {
@@ -1007,7 +1034,7 @@ window.updateTypeMessageBox = () => {
                 }
                 if (userQuery !== '') {
                     appendUserMessage(userQuery.trim(''));
-                    // 🎯 При вводе текста используем русский по умолчанию
+                    // 🎯 При вводе текста используем выбранный язык
                     handleUserQuery(userQuery.trim(''), userQueryHTML, imgUrl, selectedLanguage);
                     document.getElementById('userMessageBox').innerHTML = '';
                     imgUrl = "";
