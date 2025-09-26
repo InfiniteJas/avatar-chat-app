@@ -1,419 +1,1040 @@
-/*
- *  Copyright (c) 2015 The WebRTC project authors. All Rights Reserved.
- *
- *  Use of this source code is governed by a BSD-style license
- *  that can be found in the LICENSE file in the root of the source
- *  tree.
- */
-.hidden {
-    display: none;
+:root {
+    --primary: #1976d2;
+    /* MUI primary */
+    --primary-contrast: #ffffff;
+    --bg: #0b0d13;
+    /* общ фон страницы чуть тёмный */
+    --surface: #ffffff;
+    /* карточки (chat) */
+    --surface-contrast: #0a0e12;
+    --divider: rgba(10, 14, 18, 0.12);
+
+    --msg-user: #E8F0FF;
+    /* пузырик пользователя */
+    --msg-assist: #F6F8FC;
+    /* пузырик ассистента */
+
+    --avatar-surface: rgba(255, 255, 255, 0.06);
+    --avatar-outline: #ffffff;
+
+    --radius-xxl: 24px;
+    --radius-xl: 20px;
+    --radius-lg: 16px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+
+    --shadow-1: 0 10px 22px rgba(0, 0, 0, .18);
+    --shadow-2: 0 8px 30px rgba(0, 0, 0, .25);
 }
 
-.highlight {
-    background-color: #eee;
-    font-size: 1.2em;
-    margin: 0 0 30px 0;
-    padding: 0.2em 1.5em;
+/* Base */
+* {
+    box-sizing: border-box
 }
 
-.warning {
-    color: red;
-    font-weight: 400;
-}
-
-@media screen and (min-width: 1000px) {
-    /* hack! to detect non-touch devices */
-    div#links a {
-        line-height: 0.8em;
-    }
-}
-
-audio {
-    max-width: 100%;
+html,
+body {
+    height: 100%
 }
 
 body {
-    height: 100%;
-    font-family: 'Roboto', sans-serif;
-    font-weight: 300;
     margin: 0;
-    padding: 1em;
-    word-break: break-word;
-    overflow-y: scroll;
+    /* background: #1d57bd; */
+    background-image: url("../image/bg.jpg");
+    background-position: center;
+    background-size: cover;
+    color: #0a0e12;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
 }
 
-button {
-    background-color: #d84a38;
-    border: none;
-    border-radius: 2px;
-    color: white;
-    font-family: 'Roboto', sans-serif;
-    font-size: 0.8em;
-    margin: 10px 0 1em 0;
-    padding: 0.5em 0.7em 0.6em 0.7em;
-}
-
-button:active {
-    background-color: #cf402f;
-}
-
-button:hover {
-    background-color: #cf402f;
-}
-
-button[disabled] {
-    color: #ccc;
-}
-
-button[disabled]:hover {
-    background-color: #d84a38;
-}
-
-canvas {
-    background-color: #ccc;
-    max-width: 100%;
-    width: 100%;
-}
-
-code {
-    font-family: 'Roboto', sans-serif;
-    font-weight: 400;
-}
-
-div#container {
-    margin: 0 auto 0 auto;
-    max-width: 60em;
-    padding: 1em 1.5em 1.3em 1.5em;
-}
-
-div#links {
-    padding: 0.5em 0 0 0;
-}
-
-h1 {
-    border-bottom: 1px solid #ccc;
-    font-family: 'Roboto', sans-serif;
-    font-weight: 500;
-    margin: 0 0 0.8em 0;
-    padding: 0 0 0.2em 0;
-}
-
-h2 {
-    color: #444;
-    font-weight: 500;
-}
-
+h1,
+h2,
 h3 {
-    border-top: 1px solid #eee;
-    color: #666;
-    font-weight: 500;
-    margin: 10px 0 10px 0;
-    white-space: nowrap;
+    margin: 0 0 .5rem
 }
 
-li {
-    margin: 0 0 0.4em 0;
+small {
+    font-size: .8rem
 }
 
-html {
-    /* avoid annoying page width change
-    when moving from the home page */
-    overflow-y: scroll;
+/* Page */
+.page {
+    padding: 16px
 }
 
-img {
+.container {
+    max-width: 1280px;
+    margin: 0 auto
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 25px 10%;
+}
+
+@media (min-width:900px) {
+
+    /* md */
+    .grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (min-width:1200px) {
+
+    /* lg */
+    .grid {
+        grid-template-columns: 1fr 2fr;
+        /* 4/8 */
+    }
+}
+
+/* Cards */
+.card {
+    border: 1px solid var(--divider);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    overflow: hidden;
+}
+
+/* Avatar card (левая) — как MUI Card с тёмным primary bg */
+.avatar-card {
+    background: #165ddf;
+    color: var(--primary-contrast);
     border: none;
-    max-width: 100%;
+    padding: 16px;
 }
 
-input[type=radio] {
+.avatar-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.avatar-card__title {
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+.avatar-card__status {
+    display: flex;
+    align-items: center;
+    gap: 8px
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #F6A5A5;
+    /* default connecting */
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, .12) inset;
+}
+
+.status-dot.ok {
+    background: #D1D6E0;
+}
+
+.status-dot.bad {
+    background: #F6A5A5;
+}
+
+.status-text {
+    color: rgba(255, 255, 255, .85);
+    font-size: .85rem;
+}
+
+.avatar-card__player {
+    width: 100%;
+    height: 520px;
+    border-radius: var(--radius-xxl);
+    background: var(--avatar-surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
     position: relative;
-    top: -1px;
+    outline: 1px solid rgba(255, 255, 255, 0.20);
+    transition: all .2s ease;
 }
 
-p {
-    color: #444;
-    font-weight: 300;
+.avatar-card__player.speaking-on {
+    outline: 3px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 0 0 10px rgba(255, 255, 255, 0.12);
 }
 
-p#data {
-    border-top: 1px dotted #666;
-    font-family: Courier New, monospace;
-    line-height: 1.3em;
-    max-height: 1000px;
-    overflow-y: auto;
-    padding: 1em 0 0 0;
+.avatar-video {
+    width: 88%;
+    height: 88%;
+    display: flex;
+    align-items: center;
+    justify-content: center
 }
 
-p.borderBelow {
-    border-bottom: 1px solid #aaa;
-    padding: 0 0 20px 0;
+.avatar-video video,
+.avatar-video #remoteVideo {
+    width: 100%;
+    height: 100%;
+    border-radius: 20px;
+    object-fit: cover;
+    box-shadow: var(--shadow-2);
 }
 
-section p:last-of-type {
-    margin: 0;
-}
-
-section {
-    border-bottom: 1px solid #eee;
-    margin: 0 0 30px 0;
-    padding: 0 0 20px 0;
-}
-
-section:last-of-type {
-    border-bottom: none;
-    padding: 0 0 1em 0;
-}
-
-#azureSpeechResource div{
-    margin: 0 1em 1em 0;
-}
-
-h1 span {
-    white-space: nowrap;
-}
-
-a {
-    color: #1D6EEE;
-    font-weight: 300;
-    text-decoration: none;
-}
-
-h1 a {
-    font-weight: 300;
-    margin: 0 10px 0 0;
-    white-space: nowrap;
-}
-
-a:hover {
-    color: #3d85c6;
-    text-decoration: underline;
-}
-
-a#viewSource {
-    display: block;
-    margin: 1.3em 0 0 0;
-    border-top: 1px solid #999;
-    padding: 1em 0 0 0;
-}
-
-div#errorMsg p {
-    color: #F00;
-}
-
-div#links a {
-    display: block;
-    line-height: 1.3em;
-    margin: 0 0 1.5em 0;
-}
-
-div.outputSelector {
-    margin: -1.3em 0 2em 0;
-}
-
-p.description {
-    margin: 0 0 0.5em 0;
-}
-
-strong {
-    font-weight: 500;
-}
-
-textarea {
-    font-family: 'Roboto', sans-serif;
-    width: 800px;
-    min-height: 40px;
-    margin-bottom: 10px;
-}
-
-video {
-    background: #222;
-    margin: 0 0 20px 0;
-    --width: 100%;
-    width: var(--width);
-    height: calc(var(--width) * 0.75);
-}
-
-ul {
-    margin: 0 0 0.5em 0;
-}
-
-#chatHistory {
-    width: 360px;
-    height: 480px;
-    font-size: medium;
-    display: none !important;
+.overlay-area {
+    position: absolute;
+    left: 0;
+    top: 0
 }
 
 #subtitles {
-    font-size: 22px;
-}
-
-@media screen and (max-width: 650px) {
-    .highlight {
-        font-size: 1em;
-        margin: 0 0 20px 0;
-        padding: 0.2em 1em;
-    }
-
-    h1 {
-        font-size: 24px;
-    }
-}
-
-@media screen and (max-width: 550px) {
-    button:active {
-        background-color: darkRed;
-    }
-
-    h1 {
-        font-size: 22px;
-    }
-}
-
-@media screen and (max-width: 450px) {
-    html {
-        height: 620px;
-        overflow-y: scroll;
-    }
-
-    h1 {
-        font-size: 20px;
-    }
-
-    #privateEndpoint,
-    #azureOpenAIEndpoint,
-    #azureCogSearchEndpoint,
-    #sttLocales,
-    #backgroundImageUrl {
-        width: 100%; 
-        box-sizing: border-box;
-    }
-
-    textarea {
-        width: 100%;
-    }
-
-    #azureSpeechResource div{
-        margin: 0;
-    }
-
-    #chatHistory {
-        width: 150px;
-        height: 210px;
-        font-size: small;
-    }
-
-    #subtitles {
-        font-size: 16px;
-    }
-
-    #remoteVideo {
-        width: 100% !important;
-    }
-
-    #videoPlayer {
-        width: 410px !important;
-        height: calc(410px * 0.5625);
-    }
-}
-
-#webrtc textarea {
-    width: 800px;
-    min-height: 100px;
-    resize: none;
-}
-
-#knownIssues {
-    color: red;
-}
-
-/* The switch - the box around the slider */
-.switch {
-    position: relative;
-    display: inline-block;
-    width: 48px;
-    height: 26px;
-}
-
-/* Hide default HTML checkbox */
-.switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-/* The slider */
-.slider {
+    width: 100%;
+    text-align: center;
+    color: #fff;
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
     position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #ccc;
-    -webkit-transition: .4s;
-    transition: .4s;
+    bottom: 5%;
+    z-index: 999;
 }
 
-.slider:before {
-    position: absolute;
-    content: "";
-    height: 20px;
-    width: 20px;
-    left: 4px;
-    bottom: 3px;
-    background-color: white;
-    -webkit-transition: .4s;
-    transition: .4s;
+.avatar-card__controls {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin-bottom: 12px;
 }
 
-input:checked + .slider {
-    background-color: #d84a38;
-}
-
-input:focus + .slider {
-    box-shadow: 0 0 1px #d84a38;
-}
-
-input:checked + .slider:before {
-    -webkit-transform: translateX(20px);
-    -ms-transform: translateX(20px);
-    transform: translateX(20px);
-}
-
-/* Rounded sliders */
-.slider.round {
-    border-radius: 34px;
-}
-
-.slider.round:before {
+.round-btn {
+    width: 84px;
+    height: 84px;
     border-radius: 50%;
+    background: #fff;
+    color: var(--primary);
+    border: none;
+    cursor: pointer;
+    box-shadow: var(--shadow-1);
 }
 
-.switchLabel {
-    display: inline-block;
-    vertical-align: middle;
+.round-btn:hover {
+    background: #F6F8FF
+}
+
+.mi {
+    font-size: 26px;
+    line-height: 1
+}
+
+.avatar-card__hint {
+    color: rgba(255, 255, 255, .80);
+    text-align: center;
+    margin: 0 0 8px;
+    font-size: .95rem;
+}
+
+.avatar-card__service {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.avatar-card__row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap
+}
+
+.primary-btn {
+    background: #2e7adf;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    padding: 12px 22px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.primary-btn:hover {
+    background: #2269c2
+}
+
+/* Chat card (правая) */
+.chat-card {
+    display: flex;
+    flex-direction: column;
+
+    padding: 16px;
+    border: none;
+    padding: 16px;
+}
+
+@media (min-width:900px) {
+    .chat-card {
+        height: calc(100vh - 64px);
+    }
+}
+
+.chat-card__header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #fff;
+    padding: 16px;
+    border-bottom: 1px solid var(--divider);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chat-card__title {
+    display: flex;
+    align-items: center;
+    gap: 10px
+}
+
+.title-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 6px 16px rgba(22, 93, 223, .25);
+    font-size: 14px;
+}
+
+.chat-card__title h2 {
+    font-size: 1.5rem;
+    font-weight: 800
+}
+
+.conn {
+    font-size: .8rem
+}
+
+.conn--ok {
+    color: #2e7d32
+}
+
+/* success.main */
+.conn--error {
+    color: #d32f2f
+}
+
+/* error.main */
+
+.chat-history {
+    padding: 8px 16px;
+    flex: 1;
+    overflow: auto;
+}
+
+.msg {
+    display: flex;
+    margin: 6px 0
+}
+
+.msg--user {
+    justify-content: flex-end
+}
+
+.msg--assistant {
+    justify-content: flex-start
+}
+
+.msg__bubble {
+    max-width: 72%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(10, 14, 18, 0.06);
+    font-size: .95rem;
+    white-space: pre-wrap;
+    color: #111;
+}
+
+.msg--user .msg__bubble {
+    background: var(--msg-user)
+}
+
+.msg--assistant .msg__bubble {
+    background: var(--msg-assist)
+}
+
+/* Quick chips */
+.quick {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 16px;
+    border-top: 1px dashed var(--divider);
+}
+
+.chip {
+    border: 1px solid var(--divider);
+    background: #fff;
+    border-radius: 16px;
+    padding: 6px 10px;
+    font-size: .85rem;
+    cursor: pointer;
+}
+
+.chip:hover {
+    background: #f7f9ff
+}
+
+/* Input capsule */
+.chat-input {
+    padding: 16px;
+    border-top: 1px solid var(--divider);
+}
+
+.capsule {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    border: 1px solid rgba(10, 14, 18, 0.08);
+    border-radius: 9999px;
+    padding: 12px 14px;
+    background: #fff;
+}
+
+.capsule__input {
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    min-height: 24px;
+    max-height: 180px;
+    font: inherit;
+    line-height: 1.4;
+}
+
+.icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    background: #eef1f5;
+    color: #4b5563;
+    display: grid;
+    place-items: center;
+}
+
+.icon-btn:hover {
+    background: #e2e6ee
+}
+
+.icon-btn--primary {
+    width: 44px;
+    height: 44px;
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .1);
+}
+
+.icon-btn--primary:hover {
+    background: #1565c0
+}
+
+/* Config */
+.config {
+    border-top: 1px solid var(--divider);
+    padding: 12px 16px;
+    margin-top: 8px
+}
+
+.config summary {
+    cursor: pointer;
+    font-weight: 600;
+    margin-bottom: 8px
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0
+}
+
+.form-row.column {
+    flex-direction: column;
+    align-items: stretch
+}
+
+.form-row input,
+.form-row select,
+.form-row textarea {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--divider);
+    font: inherit;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0
+}
+
+.row {
+    display: flex;
+    gap: 8px;
+}
+
+.wrap {
+    flex-wrap: wrap
+}
+
+
+/* ====== Панели/кнопки ====== */
+.toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+}
+
+.toolbar--center {
+    justify-content: center;
+}
+
+.btn {
+    appearance: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px 16px;
+    border-radius: 9999px;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 600;
+    background: #eef1f5;
+    color: #1f2937;
+    transition: transform .08s ease, background .15s ease, box-shadow .15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+}
+
+.btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.btn:hover:not(:disabled) {
+    background: #e5e9f2;
+}
+
+.btn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.btn--lg {
+    font-size: 18px;
+    padding: 14px 28px;
+}
+
+.btn--primary {
+    background: #1976d2;
+    color: #fff;
+    box-shadow: 0 6px 14px rgba(25, 118, 210, .25);
+}
+
+.btn--primary:hover {
+    background: #1565c0;
+}
+
+.btn--green {
+    background: #4CAF50;
+    color: #fff;
+    box-shadow: 0 6px 14px rgba(76, 175, 80, .20);
+}
+
+.btn--green:hover {
+    background: #449D48;
+}
+
+.btn--blue {
+    background: #2196F3;
+    color: #fff;
+    box-shadow: 0 6px 14px rgba(33, 150, 243, .20);
+}
+
+.btn--blue:hover {
+    background: #1E88E5;
+}
+
+.btn--ghost {
+    background: #fff;
+    color: #374151;
+    border: 1px solid rgba(10, 14, 18, .12);
+}
+
+/* ====== Видео-блок аватара ====== */
+.avatar-box {
     position: relative;
-    margin-top: 5px;
+    max-width: 960px;
+    margin: 0 auto 8px;
+    background: rgba(255, 255, 255, .06);
+    border-radius: 50%;
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
 }
 
-#microphoneRussian {
-    background-color: #4CAF50 !important;
-    color: white;
-    margin-right: 5px;
+.avatar-box__overlay {
+    position: absolute;
+    left: 8px;
+    top: 8px;
 }
 
-#microphoneKazakh {
-    background-color: #2196F3 !important;
-    color: white;
-    margin-right: 5px;
+.avatar-box__history {
+    border: none;
+    resize: none;
+    background: transparent;
+    overflow: hidden;
 }
 
-#microphoneRussian:hover {
-    background-color: #45a049 !important;
+.avatar-box__local video {
+    width: 100%;
+    height: auto;
+    border-radius: 20px;
+    object-fit: cover;
+    display: block;
 }
 
-#microphoneKazakh:hover {
-    background-color: #1976D2 !important;
+.avatar-box__remote {
+    width: 100%;
+    min-height: 320px;
+    /* пока стрим не подключен */
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.avatar-box__subs {
+    width: 100%;
+    text-align: center;
+    color: #fff;
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+    position: absolute;
+    bottom: 5%;
+    z-index: 999;
+    left: 0;
+    padding: 0 8px;
+}
+
+/* ====== Type Message ====== */
+.typebox {
+    max-width: 960px;
+    margin: 5px auto 0;
+}
+
+.typebox__toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    user-select: none;
+    color: #111827;
+}
+
+.typebox__toggle input {
+    accent-color: #1976d2;
+}
+
+.typebox__toggle label {
+    font-size: 14px;
+}
+
+.typebox__editor {
+    max-width: 940px;
+    min-height: 75px;
+    max-height: 200px;
+    padding: 10px 12px;
+    overflow-y: auto;
+    border: 1px solid rgba(10, 14, 18, .18);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .04) inset;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.typebox__editor:focus {
+    outline: 2px solid rgba(25, 118, 210, .25);
+}
+
+.typebox__attach {
+    max-width: 960px;
+    margin: 8px auto 0;
+}
+
+.typebox__attach img {
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    display: block;
+    filter: grayscale(.1);
+}
+
+/* Лэйаут: чуть больше «воздуха», как у MUI Grid spacing={2} */
+.grid {
+    gap: 20px;
+}
+
+/* ===== AvatarPanel header ===== */
+.avatar-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 10px 0;
+}
+
+.avatar-head__title {
+    font-weight: 800;
+    font-size: 24px;
+    color: #fff;
+}
+
+.avatar-head__status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* toolbar — в одну строку на широких, перенос на узких */
+.toolbar--wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 8px 0 16px;
+}
+
+/* Видео-блок: высота под «как в реакте» */
+.avatar-box {
+    height: 520px;
+    /* ключ к визуальному совпадению с AvatarPanel */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-box__remote {
+    width: 100%;
+    height: 100%;
+}
+
+/* ===== ChatPanel header ===== */
+.chat-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    background: #fff;
+    border-bottom: 1px solid var(--divider);
+    border-top-left-radius: var(--radius-lg);
+    border-top-right-radius: var(--radius-lg);
+}
+
+.chat-head__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chat-head h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.title-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 6px 16px rgba(22, 93, 223, .25);
+    font-size: 14px;
+}
+
+/* индикатор подключения */
+.conn {
+    font-size: .8rem;
+}
+
+.conn--ok {
+    color: #2e7d32;
+}
+
+.conn--error {
+    color: #d32f2f;
+}
+
+/* Полотно чата заполняет оставшуюся высоту, как у flex-колонки в MUI */
+.chat-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-body {
+    display: flex;
+    flex-direction: flex;
+    justify-content: end;
+    height: 100%;
+    padding: 12px 16px;
+}
+
+.chat-spacer {
+    flex: 1;
+}
+
+/* просто «заниматель места», чтобы низ не прилипал */
+
+/* Type Message блок выровнен к левому краю «полотна» */
+.typebox {
+    max-width: 720px;
+}
+
+.typebox__attach {
+    margin-top: 8px;
+}
+
+/* Единый стиль капсульных кнопок */
+.btn {
+    appearance: none;
+    border: 1px solid rgba(10, 14, 18, .12);
+    background: #fff;
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: .15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+}
+
+.btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+
+.btn:hover:not(:disabled) {
+    background: #f6f8fc;
+}
+
+.btn:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+/* капсульная форма и выравнивание высоты у всех */
+.btn--pill {
+    border-radius: 9999px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* мягкий, ненавязчивый акцент только для старта */
+.btn--primary-soft {
+    background: #eaf2fd;
+    /* мягкий голубой фон */
+    border-color: #d5e4fb;
+    color: #0b3b82;
+    box-shadow: 0 2px 8px rgba(25, 118, 210, .12);
+}
+
+.btn--primary-soft:hover {
+    background: #e1ecfd;
+}
+
+/* неброский вариант для остальных */
+.btn--ghost {
+    background: #fff;
+    color: #374151;
+    border-color: rgba(10, 14, 18, .16);
+}
+
+.btn--ghost:hover {
+    background: #f8fafc;
+}
+
+.toolbar--compact {
+    gap: 8px;
+    margin: 12px 0;
+}
+
+.toolbar--compact .btn {
+    padding: 6px 12px;
+    /* было 10px 16px */
+    font-size: 13px;
+    /* было 16px */
+    box-shadow: 0 1px 1px rgba(0, 0, 0, .05);
+}
+
+.toolbar--compact .btn--pill {
+    height: 32px;
+    /* было 40px */
+    border-radius: 9999px;
+}
+
+/* контейнер чата — колонка на всю высоту */
+.chat-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 12px 16px;
+}
+
+/* отталкивает нижнюю панель вниз */
+.chat-spacer {
+    flex: 1;
+}
+
+/* растягиваем панель ввода на всю ширину и прижимаем вниз */
+.typebox--dock {
+    width: 100%;
+    max-width: 100%;
+    margin-top: auto;
+    /* ключ для «докинга» вниз */
+}
+
+/* само поле редактирования тоже на всю ширину */
+.typebox--dock .typebox__editor {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* и блок с иконкой вложения по ширине контейнера */
+.typebox--dock .typebox__attach {
+    width: 100%;
+}
+
+/* Рамка обрезает лишнее, чтобы сдвиг не вылазил */
+.avatar-box__remote {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    /* вертикально по центру */
+    justify-content: center;
+    border-radius: 50%;
+    /* исходно по центру */
+}
+
+/* Тонкая настройка смещения по X (отрицательное — влево, положительное — вправо) */
+:root {
+    --avatar-shift-x: -0px;
+    /* ← подбери значение под себя */
+}
+
+/* Видео: высота = 100% рамки, ширина авто, пропорции ок, и сдвиг по X */
+#remoteVideo video,
+#localVideo video {
+    height: 100% !important;
+    width: auto !important;
+    display: block;
+    border-radius: 20px;
+    transform: translateX(var(--avatar-shift-x));
+}
+
+/* На узких экранах можно убрать сдвиг */
+@media (max-width: 900px) {
+    :root {
+        --avatar-shift-x: 0px;
+    }
+}
+
+/* строка: инпут + иконка справа */
+.typebox__row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    width: 100%;
+}
+
+/* растягиваем редактор на всю ширину, оставляя место под иконку */
+.typebox__row .typebox__editor {
+    flex: 1;
+    max-width: 100%;
+}
+
+/* перенос вложения направо и компактный вид */
+.typebox__attach--right {
+    display: flex;
+    align-items: center;
+}
+
+.typebox__attach--right img {
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    filter: grayscale(.1);
+}
+
+/* если где-то раньше .typebox__attach задавалась ширина 100% — переопределим */
+.typebox--dock .typebox__attach {
+    width: auto;
+    margin-left: 4px;
+}
+
+.btn--success {
+    background: #22c55e;
+    /* зелёный */
+    border: 1px solid #1fb455;
+    color: #fff;
+    box-shadow: 0 6px 14px rgba(34, 197, 94, .25);
+}
+
+.btn--success:hover {
+    background: #16a34a !important;
+}
+
+/* ряд под «текстовые действия» */
+.toolbar--text {
+    gap: 8px;
+}
+
+/* «кнопка как текст» */
+.btn--text {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    height: auto;
+    border-radius: 0;
+    color: #e7e7e7;
+    /* серый */
+    font-size: 13px;
+    /* небольшой */
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.btn--text:hover:not(:disabled) {
+    color: #9ca3af;
+    text-decoration: underline;
+}
+
+.btn--text:disabled {
+    color: #9ca3af;
+    cursor: default;
+    text-decoration: none;
+}
+
+/* разделитель между пунктами */
+.sep {
+    color: #9ca3af;
+    user-select: none;
 }
