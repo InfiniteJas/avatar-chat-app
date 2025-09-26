@@ -40,7 +40,7 @@ body {
     background-position: center;
     background-size: cover;
     color: #0a0e12;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
 }
 
 h1,
@@ -645,10 +645,311 @@ small {
     user-select: none;
 }
 
-.chat-history a{
+.chat-history a {
     color: var(--primary);
     text-decoration: underline;
     word-break: break-all;
-  }
-  .chat-history a:hover{ text-decoration: none; }
-  
+}
+
+.chat-history a:hover {
+    text-decoration: none;
+}
+
+.btn--with-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    line-height: 1;
+}
+
+.btn__icon {
+    width: 18px;
+    height: 18px;
+    display: inline-grid;
+    place-items: center;
+}
+
+/* Toolbar layout (оставим как есть, лишь немного пространства) */
+.toolbar.toolbar--compact {
+    gap: 8px;
+}
+
+/* Бизнес-стиль для квадратных кнопок-иконок */
+.btn.btn--square {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    /* мягкие углы вместо "pill" */
+    border: 1px solid #E2E8F0;
+    /* нейтральная обводка */
+    background: #FFFFFF;
+    /* чистый фон */
+    color: #0F172A;
+    /* почти чёрный текст/иконка */
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .2s ease, border-color .2s ease, transform .1s ease, box-shadow .2s ease, color .2s ease;
+}
+
+.btn.btn--square:hover:not([disabled]) {
+    background: #F8FAFC;
+    /* лёгкий hover */
+    border-color: #CBD5E1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(16, 24, 40, 0.08);
+}
+
+.btn.btn--square:active:not([disabled]) {
+    transform: translateY(0);
+    background: #EEF2F7;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+.btn.btn--square:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 2px #FFFFFF,
+        0 0 0 4px #94A3B8;
+    /* спокойное focus-кольцо */
+}
+
+/* Состояние disabled */
+.btn.btn--square[disabled] {
+    opacity: .55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+
+/* Поддержка тёмного фона/картинки: чуть темнее границы/фон при необходимости */
+@media (prefers-color-scheme: dark) {
+    .btn.btn--square {
+        background: rgba(255, 255, 255, 0.94);
+        border-color: #E5E7EB;
+    }
+}
+
+/* =========================
+   ADAPT: Typebox + actions
+   ========================= */
+
+/* Ряд с редактором и блоком действий справа */
+.typebox__row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    /* редактор растёт, действия — по контенту */
+    gap: 12px;
+    align-items: end;
+}
+
+/* Секция действий (скрепка + отправить) */
+.typebox__actions {
+    display: inline-flex;
+    gap: 8px;
+}
+
+/* Плейсхолдер для contentEditable */
+.typebox__editor:empty:before {
+    content: "Введите сообщение…";
+    color: #94A3B8;
+}
+
+/* Квадратные и «праймари» кнопки (деловой стиль) */
+.btn.btn--square {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    color: #0F172A;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .2s, border-color .2s, transform .1s, box-shadow .2s, color .2s;
+}
+
+.btn.btn--square:hover:not([disabled]) {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(16, 24, 40, 0.08);
+}
+
+.btn.btn--square:active:not([disabled]) {
+    transform: none;
+    background: #EEF2F7;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+}
+
+.btn.btn--square[disabled] {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+/* Кнопка отправки (плотная, деловая) */
+.btn.btn--primary {
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid #0F172A;
+    background: #0F172A;
+    color: #fff;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, .15);
+    transition: background .2s, border-color .2s, transform .1s, box-shadow .2s;
+}
+
+.btn.btn--primary:hover {
+    background: #111827;
+    border-color: #111827;
+    transform: translateY(-1px);
+}
+
+.btn.btn--primary:active {
+    transform: none;
+}
+
+/* Иконки внутри кнопок по центру, без сдвига */
+.btn.btn--primary svg,
+.btn.btn--square svg {
+    display: block;
+}
+
+/* =========================
+     ADAPT: Chat/History Mobile
+     ========================= */
+
+/* Чуть больше кликабельности на мобильных */
+@media (max-width: 600px) {
+    .grid {
+        grid-template-columns: 1fr !important;
+        padding: 16px;
+        gap: 16px;
+    }
+
+    .avatar-card,
+    .chat-card {
+        height: auto;
+        max-height: none;
+    }
+
+    .avatar-box {
+        height: 360px;
+        /* ниже, чтобы поместилось */
+        border-radius: 24px;
+        /* вместо круга, лучше под мобильные */
+    }
+
+    .avatar-box__remote {
+        border-radius: 16px;
+    }
+
+    #remoteVideo video,
+    #localVideo video {
+        border-radius: 16px !important;
+    }
+
+    .chat-head h2 {
+        font-size: 20px;
+    }
+
+    .chat-history {
+        padding: 8px 8px;
+    }
+
+    .msg__bubble {
+        max-width: 86%;
+        font-size: .95rem;
+    }
+
+    .typebox {
+        max-width: 100%;
+        margin: 8px 0 0;
+    }
+
+    .typebox__row {
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+    }
+
+    .btn.btn--square {
+        width: 44px;
+        height: 44px;
+    }
+
+    .btn.btn--primary {
+        height: 44px;
+        padding: 0 16px;
+    }
+}
+
+/* =========================
+     ADAPT: Better contrast on bg image
+     ========================= */
+
+.avatar-card {
+    /* чуть выше контраст на цветном фоне */
+    box-shadow: 0 12px 24px rgba(0, 0, 0, .18);
+}
+
+.chat-card {
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, .14);
+}
+
+/* =========================
+     ADAPT: Dark scheme polish
+     ========================= */
+@media (prefers-color-scheme: dark) {
+    .chat-head {
+        background: rgba(255, 255, 255, 0.98);
+    }
+
+    .typebox__editor {
+        background: #fff;
+        border-color: rgba(10, 14, 18, .18);
+        color: #0F172A;
+    }
+
+    .btn.btn--square {
+        background: rgba(255, 255, 255, 0.96);
+        border-color: #E5E7EB;
+    }
+}
+
+/* =========================
+     ADAPT: Subtitles readability
+     ========================= */
+#subtitles {
+    font-weight: 700;
+    letter-spacing: .2px;
+    line-height: 1.2;
+}
+
+/* =========================
+     ADAPT: Message bubbles polish
+     ========================= */
+.msg__bubble {
+    border-color: rgba(10, 14, 18, 0.08);
+    backdrop-filter: saturate(1.05);
+}
+
+
+/* На мобильных — компактнее высота */
+@media (max-width: 600px) {
+    .chat-card {
+    }
+
+    .chat-body {
+        max-height: 500px;
+        padding: 8px 12px;
+    }
+}
