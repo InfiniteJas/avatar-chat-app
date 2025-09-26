@@ -242,6 +242,7 @@ ul {
     width: 360px;
     height: 480px;
     font-size: medium;
+    display: none !important;
 }
 
 #subtitles {
