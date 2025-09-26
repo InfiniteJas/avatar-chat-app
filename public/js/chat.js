@@ -519,15 +519,48 @@ async function getAssistantResponse() {
     }
 }
 
-function displayAndSpeakResponse(text) {
+function displayAndSpeakResponse(text, lang = "ru") {
     let finalText = text;
 
     if (!greeted) {
         finalText = `Армысыз, Олжас Абаевич! ${text}`;
         greeted = true;
     }
-    speak(finalText);
+
+    // 🟢 Подбираем голос в зависимости от языка
+    let ttsVoice = "ru-RU-SvetlanaNeural";
+    if (lang === "kk") {
+        ttsVoice = "kk-KZ-AigulNeural";
+    }
+
+    // ⬇️ подставляем выбранный голос прямо в speakNext()
+    let ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'
+        xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='${lang === "kk" ? "kk-KZ" : "ru-RU"}'>
+        <voice name='${ttsVoice}'>${htmlEncode(finalText)}</voice></speak>`;
+
+    if (isSpeaking) {
+        spokenTextQueue.push(finalText);
+        return;
+    }
+    lastSpeakTime = new Date();
+    isSpeaking = true;
+    speakingText = finalText;
+    document.getElementById('stopSpeaking').disabled = false;
+
+    avatarSynthesizer.speakSsmlAsync(ssml).then(
+        (result) => {
+            isSpeaking = false;
+            document.getElementById('stopSpeaking').disabled = true;
+            speakingText = '';
+        }
+    ).catch((error) => {
+        console.error("Ошибка синтеза речи:", error);
+        isSpeaking = false;
+        document.getElementById('stopSpeaking').disabled = true;
+        speakingText = '';
+    });
 }
+
 
 function displayError(message) {
     let chatHistoryTextArea = document.getElementById('chatHistory');
