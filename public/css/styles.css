@@ -397,3 +397,23 @@ input:checked + .slider:before {
     position: relative;
     margin-top: 5px;
 }
+
+#microphoneRussian {
+    background-color: #4CAF50 !important;
+    color: white;
+    margin-right: 5px;
+}
+
+#microphoneKazakh {
+    background-color: #2196F3 !important;
+    color: white;
+    margin-right: 5px;
+}
+
+#microphoneRussian:hover {
+    background-color: #45a049 !important;
+}
+
+#microphoneKazakh:hover {
+    background-color: #1976D2 !important;
+}
