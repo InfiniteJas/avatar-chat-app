@@ -161,22 +161,35 @@ async function callOriginalDB(message) {
 
     const response = await axios.post(DB_WEBHOOK_URL, payload, {
       headers: { 'Content-Type': 'application/json' },
-      timeout: 30000
+      timeout: 15000  // Уменьшил timeout до 15 секунд
     });
 
     console.log(`📥 Ответ от оригинальной БД:`, response.data);
 
-    // Пытаемся найти текст ответа в популярных полях
-    const responseData = response.data || {};
-    const result = responseData.answer || 
-                   responseData.message || 
-                   responseData.result || 
+    // 🎯 ИСПРАВЛЕНИЕ: БД возвращает массив объектов
+    let responseData = response.data;
+    
+    // Если это массив - берем первый элемент
+    if (Array.isArray(responseData) && responseData.length > 0) {
+      responseData = responseData[0];
+    }
+
+    // Ищем ответ в правильных полях
+    const result = responseData?.response ||  // Основное поле ответа
+                   responseData?.answer || 
+                   responseData?.message || 
+                   responseData?.result || 
                    (typeof responseData === 'string' ? responseData : JSON.stringify(responseData)) ||
                    'Данные не найдены';
 
     return result;
   } catch (error) {
     console.error('Original DB error:', error.response?.data || error.message);
+    
+    if (error.code === 'ECONNABORTED') {
+      return 'Превышено время ожидания ответа от базы данных';
+    }
+    
     return 'Ошибка при обращении к базе данных';
   }
 }
