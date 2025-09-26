@@ -3,6 +3,42 @@
 
 <head>
   <meta charset="UTF-8">
+  <script>
+    (function () {
+      // ключик для кэша в пределах вкладки
+      var OK_KEY = 'pw_ok_v1';
+      if (sessionStorage.getItem(OK_KEY) === '1') return;
+
+      // спрашиваем пин ДО загрузки остального
+      var p = prompt('Введите пароль для доступа:');
+      if (p === '9876') {
+        sessionStorage.setItem(OK_KEY, '1');
+        return; // продолжаем загрузку страницы
+      }
+
+      // неверно — показываем короткое сообщение и стопаем дальше
+      document.open();
+      document.write('<!doctype html><title>Доступ запрещён</title>' +
+        '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Arial">' +
+        '<div style="text-align:center">' +
+        '<h1 style="margin:0 0 8px;font-size:28px">Доступ запрещён</h1>' +
+        '<div style="opacity:.7">Неверный пароль</div>' +
+        '</div></div>');
+      document.close();
+      throw new Error('Access blocked: wrong password');
+    })();
+  </script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Talking Avatar Chat Demo</title>
+  <link href="./css/styles.css" rel="stylesheet">
+  <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+  <script src="./js/chat.js"></script>
+</head>
+
+
+<head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Talking Avatar Chat Demo</title>
   <link href="./css/styles.css" rel="stylesheet">
@@ -161,8 +197,7 @@
     <label style="font-size: medium;" for="talkingAvatarCharacter">Avatar Character:</label>
     <input id="talkingAvatarCharacter" type="text" size="16" style="font-size: medium;" value="meg"></input><br />
     <label style="font-size: medium;" for="talkingAvatarStyle">Avatar Style:</label>
-    <input id="talkingAvatarStyle" type="text" size="16" style="font-size: medium;"
-      value="business"></input><br />
+    <input id="talkingAvatarStyle" type="text" size="16" style="font-size: medium;" value="business"></input><br />
     <div style="background-color: white; width: 400px;">
       <input type="checkbox" id="customizedAvatar" onchange="window.updateCustomAvatarBox()">Custom Avatar</input>
       <input type="checkbox" id="useBuiltInVoice" style="width: 12px;" disabled>Use Built-In Voice</input><br />
