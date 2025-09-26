@@ -449,7 +449,7 @@ async function handleFunctionCalls(toolCalls) {
     for (const toolCall of toolCalls) {
         if (toolCall.type === 'function') {
             try {
-                console.log('Calling function via endpoint:', toolCall.function.name, "with arguments:", toolCall.function.arguments, "chat.js:453");
+                console.log('🔧 Calling function via endpoint:', toolCall.function.name, "with arguments:", toolCall.function.arguments);
                 const functionResponse = await fetch(functionCallsEndpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -459,7 +459,14 @@ async function handleFunctionCalls(toolCalls) {
                     })
                 });
                 const result = await functionResponse.json();
-                console.log('Function result:', result, "chat.js:463");
+                console.log('🔧 Function result:', result);
+                
+                // 🎯 СОХРАНЯЕМ язык из сервера для последующего использования
+                if (result.lang) {
+                    window.lastServerLang = result.lang;
+                    console.log('🌍 Сохранён язык с сервера:', result.lang);
+                }
+                
                 toolOutputs.push({
                     tool_call_id: toolCall.id,
                     output: JSON.stringify(result.success ? result.result : { error: result.error })
@@ -501,14 +508,18 @@ async function getAssistantResponse() {
         
         if (assistantMessage && assistantMessage.content[0]) {
             const responseText = assistantMessage.content[0].text.value;
-            console.log('Assistant response:', responseText.substring(0,100) + "...", "chat.js:505");
-            displayAndSpeakResponse(responseText);
+            console.log('📨 Assistant response:', responseText.substring(0,100) + "...");
+            
+            // 🎯 ПЕРЕДАЁМ lang из сервера, если он есть
+            displayAndSpeakResponse(responseText, window.lastServerLang || null);
+            window.lastServerLang = null; // очищаем после использования
         } else {
             const lastAssistantMessage = messagesData.data.find(msg => msg.role === 'assistant');
             if (lastAssistantMessage && lastAssistantMessage.content[0]) {
                 const responseText = lastAssistantMessage.content[0].text.value;
-                console.log('Assistant response (fallback):', responseText.substring(0,100) + "...", "chat.js:511");
-                displayAndSpeakResponse(responseText);
+                console.log('📨 Assistant response (fallback):', responseText.substring(0,100) + "...");
+                displayAndSpeakResponse(responseText, window.lastServerLang || null);
+                window.lastServerLang = null;
             } else {
                 displayError('Не удалось получить ответ ассистента');
             }
@@ -519,58 +530,97 @@ async function getAssistantResponse() {
     }
 }
 
-function cleanTextForTTS(rawText, lang) {
-  let t = String(rawText);
-
-  // Убираем слэши полностью (основная причина "горизонтальный бір нәрсе")
-  t = t.replace(/[\/\\]/g, ' ');
-
-  // Убираем прочие знаки, которые могут портить озвучку
-  t = t.replace(/[№%()\-–—_:;[\]{}<>]/g, ' ');
-
-  // Схлопываем повторные пробелы
-  t = t.replace(/\s+/g, ' ').trim();
-
-  return t;
+// Функция определения языка по тексту
+function detectLanguage(text) {
+    // Казахские специфические символы
+    const kazakhChars = /[әіңғүұқөһ]/i;
+    
+    // Подсчитываем казахские слова
+    const words = text.split(/\s+/);
+    let kazakhWords = 0;
+    
+    for (const word of words) {
+        if (kazakhChars.test(word)) {
+            kazakhWords++;
+        }
+    }
+    
+    // Если больше 20% слов содержат казахские символы - это казахский
+    const kazakhPercentage = (kazakhWords / words.length) * 100;
+    
+    console.log(`🔍 Анализ языка: слов с каз. символами ${kazakhWords}/${words.length} (${kazakhPercentage.toFixed(1)}%)`);
+    
+    return kazakhPercentage > 20 ? "kk" : "ru";
 }
 
-function displayAndSpeakResponse(text, lang = "ru") {
-    // 1) базовый текст
+function cleanTextForTTS(rawText, lang) {
+    let t = String(rawText);
+
+    // ❌ Полностью убираем слэши (основная причина "горизонтальный бір нәрсе")
+    t = t.replace(/[\/\\]/g, ' ');
+
+    // ❌ Убираем прочие знаки, которые могут портить озвучку
+    t = t.replace(/[№%()\-–—_:;[\]{}<>«»]/g, ' ');
+    
+    // ❌ Убираем повторяющиеся точки и восклицательные знаки
+    t = t.replace(/\.{2,}/g, '.');
+    t = t.replace(/!{2,}/g, '!');
+    t = t.replace(/\?{2,}/g, '?');
+
+    // ✅ Схлопываем повторные пробелы
+    t = t.replace(/\s+/g, ' ').trim();
+
+    console.log(`🧹 Очистка текста (${lang}): "${rawText}" → "${t}"`);
+    
+    return t;
+}
+
+function displayAndSpeakResponse(text, langFromServer = null) {
+    // 1) Базовый текст
     let finalText = text;
 
-    // 2) приветствие только один раз
+    // 2) Приветствие только один раз
     if (!greeted) {
         finalText = `Армысыз, Олжас Абаевич! ${text}`;
         greeted = true;
     }
 
-    // 3) очистка текста от символов, которые ломают озвучку
-    const cleaned = cleanTextForTTS(finalText, lang);
+    // 3) 🎯 ИСПРАВЛЕНИЕ: Определяем язык из ответа сервера ИЛИ анализируем текст
+    let detectedLang = langFromServer || detectLanguage(finalText);
+    
+    console.log(`🌍 Язык определён: ${detectedLang} (из сервера: ${langFromServer}, анализ текста: ${detectLanguage(finalText)})`);
 
-    // 4) выбираем голос по языку
-    let ttsVoice = "ru-RU-SvetlanaNeural";
-    let xmlLang = "ru-RU";
-    if (lang === "kk") {
+    // 4) Очистка текста от символов, которые ломают озвучку
+    const cleaned = cleanTextForTTS(finalText, detectedLang);
+
+    // 5) 🎯 ИСПРАВЛЕНИЕ: Выбираем голос И xml:lang по языку
+    let ttsVoice, xmlLang;
+    if (detectedLang === "kk") {
         ttsVoice = "kk-KZ-AigulNeural";
         xmlLang = "kk-KZ";
+    } else {
+        ttsVoice = "ru-RU-SvetlanaNeural"; 
+        xmlLang = "ru-RU";
     }
 
-    // 5) собираем SSML c ОЧИЩЕННЫМ текстом
-    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'
-        xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='${xmlLang}'>
+    // 6) 🎯 ИСПРАВЛЕНИЕ: Обновляем значение в UI (чтобы следующие вызовы использовали правильный голос)
+    document.getElementById('ttsVoice').value = ttsVoice;
+
+    // 7) Собираем SSML с ОЧИЩЕННЫМ текстом
+    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='${xmlLang}'>
         <voice name='${ttsVoice}'><mstts:leadingsilence-exact value='0'/>${htmlEncode(cleaned)}</voice>
     </speak>`;
 
-    // 6) выводим текст в чат синхронно с речью (как и раньше)
+    // 8) Выводим текст в чат синхронно с речью (как и раньше)
     if (enableDisplayTextAlignmentWithSpeech) {
         const chatHistoryTextArea = document.getElementById('chatHistory');
         chatHistoryTextArea.innerHTML += '<br/>Assistant: ' + cleaned.replace(/\n/g, '<br/>') + '<br/>';
         chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight;
     }
 
-    // 7) очередь озвучки (как у тебя было)
+    // 9) Очередь озвучки (как у тебя было)
     if (isSpeaking) {
-        spokenTextQueue.push(cleaned);
+        spokenTextQueue.push({text: cleaned, lang: detectedLang});
         return;
     }
 
@@ -579,27 +629,28 @@ function displayAndSpeakResponse(text, lang = "ru") {
     speakingText = cleaned;
     document.getElementById('stopSpeaking').disabled = false;
 
-    // полезные логи, чтобы видеть, какой голос реально пошёл и что читаем
-    console.log("🔊 Voice:", ttsVoice, " Lang:", lang);
-    console.log("🗣️ TTS text:", cleaned);
+    // Полезные логи, чтобы видеть, какой голос реально пошёл и что читаем
+    console.log(`🔊 Voice: ${ttsVoice}, Lang: ${detectedLang}`);
+    console.log(`🗣️ TTS text: "${cleaned}"`);
 
     avatarSynthesizer.speakSsmlAsync(ssml).then(
         () => {
             speakingText = '';
             if (spokenTextQueue.length > 0) {
-                // если в очереди что-то осталось — дочитываем
-                // используй ту же функцию, чтобы сохранить поведение
-                displayAndSpeakResponse(spokenTextQueue.shift(), lang);
+                // если в очереди что-то осталось – дочитываем
+                const nextItem = spokenTextQueue.shift();
+                displayAndSpeakResponse(nextItem.text, nextItem.lang);
             } else {
                 isSpeaking = false;
                 document.getElementById('stopSpeaking').disabled = true;
             }
         }
     ).catch((error) => {
-        console.error("Ошибка синтеза речи:", error);
+        console.error("❌ Ошибка синтеза речи:", error);
         speakingText = '';
         if (spokenTextQueue.length > 0) {
-            displayAndSpeakResponse(spokenTextQueue.shift(), lang);
+            const nextItem = spokenTextQueue.shift();
+            displayAndSpeakResponse(nextItem.text, nextItem.lang);
         } else {
             isSpeaking = false;
             document.getElementById('stopSpeaking').disabled = true;
