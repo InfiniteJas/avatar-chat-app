@@ -154,19 +154,24 @@ async function callOriginalDB(message) {
   try {
     const payload = {
       sessionId: "12345", 
-      message: message  // Всегда на русском приходит из LLM
+      message: message
     };
 
     console.log(`📤 Отправляем в оригинальную БД: ${JSON.stringify(payload)}`);
 
     const response = await axios.post(DB_WEBHOOK_URL, payload, {
       headers: { 'Content-Type': 'application/json' },
-      timeout: 15000  // Уменьшил timeout до 15 секунд
+      timeout: 30000,  // Вернул 30 секунд
+      // Добавляем настройки для лучшей совместимости
+      maxRedirects: 5,
+      validateStatus: function (status) {
+        return status >= 200 && status < 300;
+      }
     });
 
     console.log(`📥 Ответ от оригинальной БД:`, response.data);
 
-    // 🎯 ИСПРАВЛЕНИЕ: БД возвращает массив объектов
+    // БД возвращает массив объектов
     let responseData = response.data;
     
     // Если это массив - берем первый элемент
@@ -175,7 +180,7 @@ async function callOriginalDB(message) {
     }
 
     // Ищем ответ в правильных полях
-    const result = responseData?.response ||  // Основное поле ответа
+    const result = responseData?.response ||
                    responseData?.answer || 
                    responseData?.message || 
                    responseData?.result || 
@@ -185,12 +190,23 @@ async function callOriginalDB(message) {
     return result;
   } catch (error) {
     console.error('Original DB error:', error.response?.data || error.message);
+    console.error('Error details:', {
+      code: error.code,
+      status: error.response?.status,
+      message: error.message
+    });
     
     if (error.code === 'ECONNABORTED') {
-      return 'Превышено время ожидания ответа от базы данных';
+      return 'Превышено время ожидания ответа от базы данных (30 сек)';
+    }
+    if (error.code === 'ECONNREFUSED') {
+      return 'Не удается подключиться к базе данных - сервис недоступен';
+    }
+    if (error.code === 'ENOTFOUND') {
+      return 'Не удается найти адрес базы данных';
     }
     
-    return 'Ошибка при обращении к базе данных';
+    return `Ошибка при обращении к базе данных: ${error.message}`;
   }
 }
 
