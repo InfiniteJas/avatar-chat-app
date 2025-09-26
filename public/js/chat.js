@@ -6,7 +6,7 @@ var peerConnectionDataChannel;
 var messages = [];
 var messageInitiated = false;
 var dataSources = [];
-var sentenceLevelPunctuations = [ '.', '?', '!', ':', ';', '。', '？', '！', '：', '；' ];
+var sentenceLevelPunctuations = ['.', '?', '!', ':', ';', '。', '？', '！', '：', '；'];
 var enableDisplayTextAlignmentWithSpeech = true;
 var isSpeaking = false;
 var isReconnecting = false;
@@ -45,7 +45,7 @@ function connectAvatar() {
     }
     let speechSynthesisConfig;
     if (privateEndpointEnabled) {
-        speechSynthesisConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${privateEndpoint}/tts/cognitiveservices/websocket/v1?enableTalkingAvatar=true`), cogSvcSubKey); 
+        speechSynthesisConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${privateEndpoint}/tts/cognitiveservices/websocket/v1?enableTalkingAvatar=true`), cogSvcSubKey);
     } else {
         speechSynthesisConfig = SpeechSDK.SpeechConfig.fromSubscription(cogSvcSubKey, cogSvcRegion);
     }
@@ -65,7 +65,7 @@ function connectAvatar() {
     };
     let speechRecognitionConfig;
     if (privateEndpointEnabled) {
-        speechRecognitionConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${privateEndpoint}/stt/speech/universal/v2`), cogSvcSubKey); 
+        speechRecognitionConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${privateEndpoint}/stt/speech/universal/v2`), cogSvcSubKey);
     } else {
         speechRecognitionConfig = SpeechSDK.SpeechConfig.fromEndpoint(new URL(`wss://${cogSvcRegion}.stt.speech.microsoft.com/speech/universal/v2`), cogSvcSubKey);
     }
@@ -87,7 +87,7 @@ function connectAvatar() {
         xhr.open("GET", `https://${cogSvcRegion}.tts.speech.microsoft.com/cognitiveservices/avatar/relay/token/v1`);
     }
     xhr.setRequestHeader("Ocp-Apim-Subscription-Key", cogSvcSubKey);
-    xhr.addEventListener("readystatechange", function() {
+    xhr.addEventListener("readystatechange", function () {
         if (this.readyState === 4) {
             const responseData = JSON.parse(this.responseText);
             const iceServerUrl = responseData.Urls[0];
@@ -113,7 +113,7 @@ function disconnectAvatar() {
 function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
     peerConnection = new RTCPeerConnection({
         iceServers: [{
-            urls: [ iceServerUrl ],
+            urls: [iceServerUrl],
             username: iceServerUsername,
             credential: iceServerCredential
         }]
@@ -168,14 +168,14 @@ function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
                 videoElement.style.width = '960px';
                 document.getElementById('remoteVideo').appendChild(videoElement);
                 console.log(`WebRTC ${event.track.kind} channel connected.`);
-                
+
                 // 🎯 АКТИВИРУЕМ ОБЕИЕ КНОПКИ МИКРОФОНА
                 document.getElementById('microphoneRussian').disabled = false;
                 document.getElementById('microphoneKazakh').disabled = false;
                 document.getElementById('stopSession').disabled = false;
                 document.getElementById('remoteVideo').style.width = '960px';
                 document.getElementById('showTypeMessage').disabled = false;
-                
+
                 if (document.getElementById('useLocalVideoForIdle').checked) {
                     document.getElementById('localVideo').hidden = true;
                     if (lastSpeakTime === undefined) {
@@ -264,7 +264,7 @@ function initMessages() {
 
 function htmlEncode(text) {
     const entityMap = {
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;'
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;'
     };
     return String(text).replace(/[&<>"'\/]/g, (match) => entityMap[match]);
 }
@@ -335,7 +335,7 @@ function stopSpeaking() {
 // 🎯 НОВАЯ ФУНКЦИЯ: Обработка пользовательского запроса с указанным языком
 function handleUserQuery(userQuery, userQueryHTML = "", imgUrlPath = "", language = "ru") {
     lastInteractionTime = new Date();
-    
+
     // 🎯 СОХРАНЯЕМ ВЫБРАННЫЙ ЯЗЫК
     selectedLanguage = language;
     console.log(`🌍 Пользователь выбрал язык: ${selectedLanguage}`);
@@ -415,13 +415,13 @@ async function checkRunStatus() {
         if (!response.ok) throw new Error('Failed to check run status');
         const status = await response.json();
         console.log('Run status:', status.status);
-        
+
         if (status.status === 'completed') {
             getAssistantResponse();
         } else if (status.status === 'requires_action') {
             handleFunctionCalls(status.required_action.submit_tool_outputs.tool_calls);
         } else if (status.status === 'in_progress') {
-             setTimeout(checkRunStatus, 2000);
+            setTimeout(checkRunStatus, 2000);
         } else if (status.status === 'failed') {
             console.error('Assistant run failed:', status.last_error);
             displayError('Ошибка выполнения запроса');
@@ -450,7 +450,7 @@ async function handleFunctionCalls(toolCalls) {
                 });
                 const result = await functionResponse.json();
                 console.log('Function result:', result);
-                
+
                 toolOutputs.push({
                     tool_call_id: toolCall.id,
                     output: JSON.stringify(result.success ? result.result : { error: result.error })
@@ -489,16 +489,16 @@ async function getAssistantResponse() {
         if (!response.ok) throw new Error('Failed to get messages');
         const messagesData = await response.json();
         const assistantMessage = messagesData.data.find(msg => msg.role === 'assistant' && msg.run_id === runId);
-        
+
         if (assistantMessage && assistantMessage.content[0]) {
             const responseText = assistantMessage.content[0].text.value;
-            console.log('Assistant response:', responseText.substring(0,100) + "...");
+            console.log('Assistant response:', responseText.substring(0, 100) + "...");
             displayAndSpeakResponse(responseText, selectedLanguage);
         } else {
             const lastAssistantMessage = messagesData.data.find(msg => msg.role === 'assistant');
             if (lastAssistantMessage && lastAssistantMessage.content[0]) {
                 const responseText = lastAssistantMessage.content[0].text.value;
-                console.log('Assistant response (fallback):', responseText.substring(0,100) + "...");
+                console.log('Assistant response (fallback):', responseText.substring(0, 100) + "...");
                 displayAndSpeakResponse(responseText, selectedLanguage);
             } else {
                 displayError('Не удалось получить ответ ассистента');
@@ -538,7 +538,7 @@ function displayAndSpeakResponse(text, language) {
         ttsVoice = "kk-KZ-AigulNeural";
         xmlLang = "kk-KZ";
     } else {
-        ttsVoice = "ru-RU-SvetlanaNeural"; 
+        ttsVoice = "ru-RU-SvetlanaNeural";
         xmlLang = "ru-RU";
     }
 
@@ -552,7 +552,7 @@ function displayAndSpeakResponse(text, language) {
 
     // Очередь озвучки
     if (isSpeaking) {
-        spokenTextQueue.push({text: cleaned, lang: language});
+        spokenTextQueue.push({ text: cleaned, lang: language });
         return;
     }
 
@@ -606,20 +606,23 @@ window.microphoneKazakh = () => {
 function startMicrophone(language) {
     lastInteractionTime = new Date();
     selectedLanguage = language;
-    
+
     // Проверяем, какая кнопка активна
     const isRussianActive = (language === "ru");
     const buttonId = isRussianActive ? 'microphoneRussian' : 'microphoneKazakh';
     const otherButtonId = isRussianActive ? 'microphoneKazakh' : 'microphoneRussian';
-    
+
     if (document.getElementById(buttonId).innerHTML.includes('Stop')) {
         // Останавливаем микрофон
         document.getElementById(buttonId).disabled = true;
         speechRecognizer.stopContinuousRecognitionAsync(
             () => {
-                document.getElementById(buttonId).innerHTML = isRussianActive ? '🎤 Русский' : '🎤 Қазақша';
+                document.getElementById(buttonId).innerHTML = isRussianActive ? 'Русский' : 'Қазақша';
                 document.getElementById(buttonId).disabled = false;
-                document.getElementById(otherButtonId).disabled = false; // Включаем другую кнопку
+                document.getElementById(otherButtonId).disabled = false;
+
+                selectedLanguage = 'ru';
+                console.log('Язык сброшен на ru после остановки микрофона');
             }, (err) => {
                 console.log("Failed to stop continuous recognition:", err);
                 document.getElementById(buttonId).disabled = false;
@@ -645,7 +648,7 @@ function startMicrophone(language) {
     // Отключаем обе кнопки во время настройки
     document.getElementById('microphoneRussian').disabled = true;
     document.getElementById('microphoneKazakh').disabled = true;
-    
+
     speechRecognizer.recognized = async (s, e) => {
         if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
             let userQuery = e.result.text.trim();
@@ -654,18 +657,18 @@ function startMicrophone(language) {
             }
 
             // Автостоп если не continuous режим
-            if (!document.getElementById('continuousConversation').checked) {
-                document.getElementById(buttonId).disabled = true;
-                speechRecognizer.stopContinuousRecognitionAsync(
-                    () => {
-                        document.getElementById(buttonId).innerHTML = isRussianActive ? '🎤 Русский' : '🎤 Қазақша';
-                        document.getElementById(buttonId).disabled = false;
-                        document.getElementById(otherButtonId).disabled = false;
-                    }, (err) => {
-                        console.log("Failed to stop continuous recognition:", err);
-                        document.getElementById(buttonId).disabled = false;
-                    });
-            }
+            // if (!document.getElementById('continuousConversation').checked) {
+            //     document.getElementById(buttonId).disabled = true;
+            //     speechRecognizer.stopContinuousRecognitionAsync(
+            //         () => {
+            //             document.getElementById(buttonId).innerHTML = isRussianActive ? '🎤 Русский' : '🎤 Қазақша';
+            //             document.getElementById(buttonId).disabled = false;
+            //             document.getElementById(otherButtonId).disabled = false;
+            //         }, (err) => {
+            //             console.log("Failed to stop continuous recognition:", err);
+            //             document.getElementById(buttonId).disabled = false;
+            //         });
+            // }
 
             // 🎯 ПЕРЕДАЕМ ВЫБРАННЫЙ ЯЗЫК В handleUserQuery
             handleUserQuery(userQuery, "", "", language);
@@ -764,7 +767,7 @@ window.stopSession = () => {
         document.getElementById('localVideo').hidden = true;
     }
     userClosedSession = true;
-    threadId = null; 
+    threadId = null;
     runId = null;
     disconnectAvatar();
 };
@@ -790,8 +793,8 @@ window.updateTypeMessageBox = () => {
                     childImg.style.height = "200px";
                 }
                 let userQueryHTML = messageBox.innerHTML.trim("");
-                if(userQueryHTML.startsWith('<img')){
-                    userQueryHTML="<br/>"+userQueryHTML;
+                if (userQueryHTML.startsWith('<img')) {
+                    userQueryHTML = "<br/>" + userQueryHTML;
                 }
                 if (userQuery !== '') {
                     // 🎯 При вводе текста используем русский по умолчанию
@@ -801,14 +804,14 @@ window.updateTypeMessageBox = () => {
                 }
             }
         });
-        document.getElementById('uploadImgIcon').addEventListener('click', function() {
+        document.getElementById('uploadImgIcon').addEventListener('click', function () {
             imgUrl = "https://wallpaperaccess.com/full/528436.jpg";
             const userMessage = document.getElementById("userMessageBox");
             const childImg = userMessage.querySelector("#picInput");
             if (childImg) {
                 userMessage.removeChild(childImg);
             }
-            userMessage.innerHTML+='<br/><img id="picInput" src="https://wallpaperaccess.com/full/528436.jpg" style="width:100px;height:100px"/><br/><br/>';   
+            userMessage.innerHTML += '<br/><img id="picInput" src="https://wallpaperaccess.com/full/528436.jpg" style="width:100px;height:100px"/><br/><br/>';
         });
     } else {
         document.getElementById('userMessageBox').hidden = true;
