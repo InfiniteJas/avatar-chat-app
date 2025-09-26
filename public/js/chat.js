@@ -24,6 +24,8 @@ var lastInteractionTime = new Date();
 var lastSpeakTime;
 var imgUrl = "";
 
+var greeted = false;
+
 // Assistant API variables
 var assistantId = 'asst_LMHsNblhuLgYt9I2RpMfm3Kr'; // ID вашего ассистента
 var threadId = null;
@@ -518,8 +520,13 @@ async function getAssistantResponse() {
 }
 
 function displayAndSpeakResponse(text) {
-    // Вывод текста в чат перенесен в функцию speakNext, чтобы текст появлялся синхронно с речью
-    speak(text);
+    let finalText = text;
+
+    if (!greeted) {
+        finalText = `Армысыз, Олжас Абаевич! ${text}`;
+        greeted = true;
+    }
+    speak(finalText);
 }
 
 function displayError(message) {
