@@ -266,16 +266,11 @@ small {
 .chat-card {
     display: flex;
     flex-direction: column;
+    height: 100%;
 
     padding: 16px;
     border: none;
     padding: 16px;
-}
-
-@media (min-width:900px) {
-    .chat-card {
-        height: calc(100vh - 64px);
-    }
 }
 
 .chat-card__header {
