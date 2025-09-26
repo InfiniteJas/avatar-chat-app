@@ -21,6 +21,7 @@ var imgUrl = "";
 var greeted = false;
 var pendingMsgEl = null;
 var sttBuffer = '';
+var muteWhileRecording = false;
 
 // 🎯 НОВАЯ ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ ДЛЯ ВЫБРАННОГО ЯЗЫКА
 var selectedLanguage = "ru"; // по умолчанию русский
@@ -701,6 +702,11 @@ function cleanTextForTTS(rawText, lang) {
 
 // 🎯 ГЛАВНАЯ ФУНКЦИЯ: Озвучка с выбранным языком
 function displayAndSpeakResponse(text, language) {
+    if (muteWhileRecording) {
+        console.log('🔇 Mic active: skip TTS');
+        return;
+    }
+
     let finalText = text;
 
     // Убрали приветствие - сразу используем полученный текст
@@ -790,6 +796,9 @@ function startMicrophone(language) {
 
     // 🔴 STOP: останавливаем распознавание и ОТПРАВЛЯЕМ накопленный буфер
     if (document.getElementById(buttonId).innerHTML.includes('⏹')) {
+        muteWhileRecording = false;
+        const ap = document.getElementById('audioPlayer');
+        if (ap) ap.muted = false;
         document.getElementById(buttonId).disabled = true;
         speechRecognizer.stopContinuousRecognitionAsync(
             () => {
@@ -868,6 +877,11 @@ function startMicrophone(language) {
     speechRecognizer.sessionStopped = (s, e) => {
         console.log("Recognition session stopped");
     };
+
+    muteWhileRecording = true;
+    if (isSpeaking) stopSpeaking();
+    const ap = document.getElementById('audioPlayer');
+    if (ap) ap.muted = true;
 
     // запуск
     speechRecognizer.startContinuousRecognitionAsync(

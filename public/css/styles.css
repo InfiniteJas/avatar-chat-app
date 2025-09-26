@@ -943,13 +943,126 @@ small {
 }
 
 
+/* sadsad */
+
+/* Аватар-карта: гибкая колонка без фиксированных внешних отступов */
+.avatar-card {
+    background: #165ddf;
+    color: var(--primary-contrast);
+    border: none;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    /* вместо фикс. 90vh даем гибкость: при высоких экранах тянется, при низких — не ломает кнопки */
+    min-height: 80vh;
+    max-height: 100vh;
+}
+
+/* Внутренняя колонка: заголовок -> видео -> действия */
+.avatar-head {
+    flex: 0 0 auto;
+}
+
+#videoContainer.avatar-box {
+    /* видео адаптивно занимает доступное пространство между хедером и кнопками */
+    flex: 1 1 auto;
+    min-height: clamp(220px, 45vh, 520px);
+    margin: 8px 0;
+    /* вместо инлайновых margin-top */
+    border-radius: 50%;
+    /* чуть мягче на маленьких экранах */
+}
+
+/* Блок действий всегда виден: липнет к низу, с разграничителем */
+.avatar-actions,
+.avatar-actions__tools {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+}
+
+/* Общий фон-подложка, чтобы кнопки читались поверх видео */
+.avatar-actions,
+.avatar-actions__tools {
+    background:
+        linear-gradient(to top, rgba(22, 93, 223, 0.75), rgba(22, 93, 223, 0.50) 60%, rgba(22, 93, 223, 0.0));
+    backdrop-filter: blur(2px);
+    padding: 10px 8px;
+}
+
+/* Горизонтальное выравнивание без «жестких» марджинов */
+.avatar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.avatar-actions__langs {
+    display: inline-flex;
+    gap: 10px;
+}
+
+/* Нижняя панель иконок — такая же сетка/центрирование */
+.avatar-actions__tools {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    padding-top: 6px;
+}
+
+/* Круглая видеомаска на десктопах и мягче на мобильных */
+.avatar-box {
+    border-radius: 50%;
+}
+
+.avatar-box__remote {
+    border-radius: 50%;
+}
+
+#remoteVideo video,
+#localVideo video {
+    border-radius: 50% !important;
+}
+
+@media (max-height: 760px) {
+    #videoContainer.avatar-box {
+        min-height: clamp(200px, 36vh, 480px);
+    }
+
+    .avatar-box {
+        border-radius: 24px;
+    }
+
+    .avatar-box__remote {
+        border-radius: 24px;
+    }
+
+    #remoteVideo video,
+    #localVideo video {
+        border-radius: 24px !important;
+    }
+
+    #videoContainer.avatar-box {
+        border-radius: 24px;
+    }
+}
+
 /* На мобильных — компактнее высота */
 @media (max-width: 600px) {
-    .chat-card {
-    }
+    .chat-card {}
 
     .chat-body {
         max-height: 500px;
         padding: 8px 12px;
+    }
+
+    .avatar-card {
+        min-height: 100vh;
+    }
+
+    .avatar-actions,
+    .avatar-actions__tools {
+        padding: 12px 10px;
     }
 }
