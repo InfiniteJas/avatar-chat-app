@@ -1,4 +1,4 @@
-// server.js (ФИНАЛЬНАЯ ВЕРСИЯ С ИСПРАВЛЕННЫМ ВЕБ-ПОИСКОМ)
+// server.js (ФИНАЛЬНАЯ ВЕРСИЯ С ИСПРАВЛЕННЫМ ВЕБ-ПОИСКОМ + LANG DETECT)
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -9,12 +9,8 @@ const PORT = process.env.PORT || 3000;
 
 // 🛑 ВАШИ ДАННЫЕ ВСТАВЛЕНЫ ПРЯМО В КОД
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
-const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
+const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5cWg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
 const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
-// // Используем ключ от универсального ресурса
-// const BING_SEARCH_API_KEY = "6f6pWKgZJIax7N63ncfwdK0OIqjxAMmNmLDm8Crm7UpiDfd38bTbJQQJ99BIACHYHv6XJ3w3AAAEACOGAc8C";
-// // Конечная точка универсального ресурса
-// const BING_SEARCH_ENDPOINT = "https://myuniversalaikey.cognitiveservices.azure.com/";
 
 const SEARCH_PROVIDER = "serpapi"; // "serpapi" | "tavily"
 const SERPAPI_API_KEY = "5b428af6a0a873bbd5d882ce73d5b2aa95e16db84fecebeef032ba7ea7fd47fb";
@@ -183,18 +179,18 @@ app.post('/api/assistant', async (req, res) => {
       if (!message || typeof message !== 'string') {
         return res.json({ success: false, error: "message (string) is required" });
       }
-  
+
       // 🔒 Жёстко задаём session_id = "12345"
       const payload = {
         sessionId: "12345",
         message: message
       };
-  
+
       const dbResp = await axios.post(DB_WEBHOOK_URL, payload, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 20000
       });
-  
+
       // Пытаемся найти текст ответа в популярных полях
       const d = dbResp.data || {};
       const text =
@@ -202,8 +198,18 @@ app.post('/api/assistant', async (req, res) => {
         d.message ||
         d.result ||
         (typeof d === 'string' ? d : JSON.stringify(d));
-  
-      return res.json({ success: true, result: text || "Пустой ответ от сервиса." });
+
+      // 🟢 Определяем язык ответа
+      let lang = "ru";
+      if (/[әіңғүұқөһ]/i.test(text)) {
+        lang = "kk";
+      }
+
+      return res.json({ 
+        success: true, 
+        result: text || "Пустой ответ от сервиса.",
+        lang 
+      });
     } catch (error) {
       console.error("db_query error:", error.response?.data || error.message);
       return res.json({ success: false, error: "Ошибка при обращении к БД-сервису." });
