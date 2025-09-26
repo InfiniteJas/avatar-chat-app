@@ -689,12 +689,19 @@ async function getAssistantResponse() {
 
 function cleanTextForTTS(rawText, lang) {
     let t = String(rawText);
+    
+    // 🎯 УБИРАЕМ ССЫЛКИ ПЕРЕД TTS
+    t = t.replace(/https?:\/\/[^\s<>()]+/gi, '');
+    t = t.replace(/www\.[^\s<>()]+/gi, '');
+    
+    // Остальная очистка
     t = t.replace(/[\/\\]/g, ' ');
-    t = t.replace(/[№%()\-–—_:;[\]{}<>«»]/g, ' ');
+    t = t.replace(/[№%()\-——_:;[\]{}<>«»]/g, ' ');
     t = t.replace(/\.{2,}/g, '.');
     t = t.replace(/!{2,}/g, '!');
     t = t.replace(/\?{2,}/g, '?');
     t = t.replace(/\s+/g, ' ').trim();
+    
     console.log(`🧹 Очистка текста (${lang}): "${rawText}" → "${t}"`);
     return t;
 }
