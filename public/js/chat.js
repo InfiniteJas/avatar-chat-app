@@ -19,6 +19,8 @@ var lastInteractionTime = new Date();
 var lastSpeakTime;
 var imgUrl = "";
 var greeted = false;
+var pendingMsgEl = null;
+var sttBuffer = '';
 
 // 🎯 НОВАЯ ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ ДЛЯ ВЫБРАННОГО ЯЗЫКА
 var selectedLanguage = "ru"; // по умолчанию русский
@@ -30,6 +32,44 @@ var runId = null;
 var functionCallsEndpoint = '/api/assistant';
 
 // ==== Chat UI helpers ====
+// pending UI
+var pendingMsgEl = null;
+
+function showPending(text) {
+    const list = chatEl();
+    if (!list) return;
+    // создаём msg контейнер как у ассистента
+    const msg = document.createElement('div');
+    msg.className = 'msg msg--assistant pending';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg__bubble';
+    // простой спиннер (inline SVG) + текст
+    bubble.innerHTML =
+        '<span class="spin" style="display:inline-block;vertical-align:-2px;margin-right:8px;width:16px;height:16px">' +
+        '<svg viewBox="0 0 50 50" style="width:16px;height:16px"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.4 188.4"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>' +
+        '</span>' +
+        '<span class="pending-text"></span>';
+
+    bubble.querySelector('.pending-text').textContent = text || 'Отправляем запрос…';
+    msg.appendChild(bubble);
+    list.appendChild(msg);
+    pendingMsgEl = msg;
+    scrollChatToBottom();
+}
+
+function updatePending(text) {
+    if (!pendingMsgEl) return;
+    const el = pendingMsgEl.querySelector('.pending-text');
+    if (el) el.textContent = text;
+}
+
+function removePending() {
+    if (!pendingMsgEl) return;
+    const parent = pendingMsgEl.parentNode;
+    if (parent) parent.removeChild(pendingMsgEl);
+    pendingMsgEl = null;
+}
 
 function chatEl() {
     return document.getElementById('chatHistoryList');
@@ -492,7 +532,7 @@ async function createThread(userQuery) {
         const thread = await response.json();
         threadId = thread.id;
         fetchAndRenderThreadMessages();
-        
+        showPending('Отправили запрос…');
         console.log('Thread created via proxy:', threadId);
         runAssistant();
 
@@ -511,7 +551,7 @@ async function addMessageToThread(userQuery) {
         });
         if (!response.ok) throw new Error('Failed to add message');
         console.log('Message added to thread via proxy');
-        
+        showPending('Отправили запрос…');
         runAssistant();
     } catch (error) {
         console.error('Error adding message:', error);
@@ -545,16 +585,18 @@ async function checkRunStatus() {
         console.log('Run status:', status.status);
 
         if (status.status === 'completed') {
-            
+            removePending();
             getAssistantResponse();
         } else if (status.status === 'requires_action') {
-            
+            updatePending('Ищем по источникам…');
             handleFunctionCalls(status.required_action.submit_tool_outputs.tool_calls);
         } else if (status.status === 'in_progress' || status.status === 'queued') {
-        
+            updatePending('Думаю…');
             setTimeout(checkRunStatus, 1000);
         } else if (status.status === 'failed') {
-            
+            updatePending('Ошибка при обработке запроса');
+            // через пару секунд уберём заглушку
+            setTimeout(removePending, 2000);
         } else {
             setTimeout(checkRunStatus, 1000);
         }
@@ -623,7 +665,7 @@ async function getAssistantResponse() {
 
         if (assistantMessage && assistantMessage.content[0]) {
             const responseText = assistantMessage.content[0].text.value;
-            
+            removePending();
             console.log('Assistant response:', responseText.substring(0, 100) + "...");
             appendAssistantMessage(responseText);
             displayAndSpeakResponse(responseText, selectedLanguage);
@@ -632,7 +674,7 @@ async function getAssistantResponse() {
             if (lastAssistantMessage && lastAssistantMessage.content[0]) {
                 const responseText = lastAssistantMessage.content[0].text.value;
                 console.log('Assistant response (fallback):', responseText.substring(0, 100) + "...");
-                
+                removePending();
                 appendAssistantMessage(responseText);
                 displayAndSpeakResponse(responseText, selectedLanguage);
             } else {
@@ -742,13 +784,12 @@ function startMicrophone(language) {
     lastInteractionTime = new Date();
     selectedLanguage = language;
 
-    // Проверяем, какая кнопка активна
     const isRussianActive = (language === "ru");
     const buttonId = isRussianActive ? 'microphoneRussian' : 'microphoneKazakh';
     const otherButtonId = isRussianActive ? 'microphoneKazakh' : 'microphoneRussian';
 
+    // 🔴 STOP: останавливаем распознавание и ОТПРАВЛЯЕМ накопленный буфер
     if (document.getElementById(buttonId).innerHTML.includes('Stop')) {
-        // Останавливаем микрофон
         document.getElementById(buttonId).disabled = true;
         speechRecognizer.stopContinuousRecognitionAsync(
             () => {
@@ -756,19 +797,25 @@ function startMicrophone(language) {
                 document.getElementById(buttonId).disabled = false;
                 document.getElementById(otherButtonId).disabled = false;
 
-                selectedLanguage = 'ru';
-                console.log('Язык сброшен на ru после остановки микрофона');
-            }, (err) => {
+                // берём финальный текст и очищаем буфер
+                const finalText = sttBuffer.trim();
+                sttBuffer = '';
+                if (finalText) {
+                    appendUserMessage(finalText);
+                    handleUserQuery(finalText, "", "", selectedLanguage);
+                }
+            },
+            (err) => {
                 console.log("Failed to stop continuous recognition:", err);
                 document.getElementById(buttonId).disabled = false;
-            });
+            }
+        );
         return;
     }
 
+    // ▶️ START
     if (document.getElementById('useLocalVideoForIdle').checked) {
-        if (!sessionActive) {
-            connectAvatar();
-        }
+        if (!sessionActive) connectAvatar();
         setTimeout(() => {
             if (document.getElementById('audioPlayer')) {
                 document.getElementById('audioPlayer').play();
@@ -780,47 +827,63 @@ function startMicrophone(language) {
         }
     }
 
-    // Отключаем обе кнопки во время настройки
+    // блокируем обе кнопки на время старта
     document.getElementById('microphoneRussian').disabled = true;
     document.getElementById('microphoneKazakh').disabled = true;
 
-    speechRecognizer.recognized = async (s, e) => {
-        if (e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
-            let userQuery = e.result.text.trim();
-            if (userQuery === '') {
-                return;
-            }
+    // сбрасываем предыдущие обработчики, чтобы не дублировались
+    speechRecognizer.recognizing = null;
+    speechRecognizer.recognized = null;
+    speechRecognizer.canceled = null;
+    speechRecognizer.sessionStopped = null;
 
-            // Автостоп если не continuous режим
-            // if (!document.getElementById('continuousConversation').checked) {
-            //     document.getElementById(buttonId).disabled = true;
-            //     speechRecognizer.stopContinuousRecognitionAsync(
-            //         () => {
-            //             document.getElementById(buttonId).innerHTML = isRussianActive ? '🎤 Русский' : '🎤 Қазақша';
-            //             document.getElementById(buttonId).disabled = false;
-            //             document.getElementById(otherButtonId).disabled = false;
-            //         }, (err) => {
-            //             console.log("Failed to stop continuous recognition:", err);
-            //             document.getElementById(buttonId).disabled = false;
-            //         });
-            // }
-            appendUserMessage(userQuery);
-            // 🎯 ПЕРЕДАЕМ ВЫБРАННЫЙ ЯЗЫК В handleUserQuery
-            handleUserQuery(userQuery, "", "", language);
+    // очищаем буфер при новом запуске
+    sttBuffer = '';
+
+    // 🟡 промежуточные гипотезы (не отправляем, только копим/при желании можно подсвечивать в UI)
+    speechRecognizer.recognizing = (s, e) => {
+        if (e.result && e.result.text) {
+            // не добавляем в буфер (это промежуточно), можно показать в UI при желании
+            // например: document.getElementById('userMessageBox').textContent = e.result.text;
         }
     };
 
+    // 🟢 финальные сегменты — аккумулируем в буфере
+    speechRecognizer.recognized = (s, e) => {
+        if (e.result && e.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+            const chunk = e.result.text.trim();
+            if (chunk) {
+                // добавляем пробел между сегментами (могут быть несколько при длинной речи)
+                sttBuffer += (sttBuffer ? ' ' : '') + chunk;
+            }
+        }
+    };
+
+    // ❌ отмена — просто лог/сброс (ничего не отправляем)
+    speechRecognizer.canceled = (s, e) => {
+        console.log("Recognition canceled:", e);
+    };
+
+    // ⏹ конец сессии — здесь ничего не шлём; отправление делаем ТОЛЬКО в ветке Stop выше
+    speechRecognizer.sessionStopped = (s, e) => {
+        console.log("Recognition session stopped");
+    };
+
+    // запуск
     speechRecognizer.startContinuousRecognitionAsync(
         () => {
             document.getElementById(buttonId).innerHTML = isRussianActive ? 'Stop Русский' : 'Stop Қазақша';
             document.getElementById(buttonId).disabled = false;
-            document.getElementById(otherButtonId).disabled = true; // Блокируем другую кнопку
-        }, (err) => {
+            document.getElementById(otherButtonId).disabled = true; // блокируем вторую кнопку
+        },
+        (err) => {
             console.log("Failed to start continuous recognition:", err);
             document.getElementById(buttonId).disabled = false;
             document.getElementById(otherButtonId).disabled = false;
-        });
+        }
+    );
 }
+
 
 // Остальные вспомогательные функции
 function checkHung() {
