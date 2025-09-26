@@ -179,13 +179,14 @@ app.post('/api/assistant', async (req, res) => {
 
   if (function_name === 'db_query') {
     try {
-      const { session_id, message } = arguments || args || {}; // на случай разного имени поля
+      const { message } = args || {}; // session_id больше не берём из args
       if (!message || typeof message !== 'string') {
         return res.json({ success: false, error: "message (string) is required" });
       }
   
+      // 🔒 Жёстко задаём session_id = "12345"
       const payload = {
-        sessionId: session_id || "default",
+        sessionId: "12345",
         message: message
       };
   
