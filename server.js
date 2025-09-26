@@ -98,9 +98,12 @@ async function performSerpAPISearch(query, focus = "general") {
   }
 
   let searchQuery = query;
+  
   if (focus === "law") {
-    searchQuery = `${query} законодательство Казахстан НПА кодекс`;
+    // Поиск только по adilet.zan.kz для правовых вопросов
+    searchQuery = `site:adilet.zan.kz ${query} законодательство Казахстан НПА кодекс`;
   } else if (focus === "practices") {
+    // Обычный поиск для международных практик
     searchQuery = `${query} международный опыт best practices мировая практика`;
   }
 
