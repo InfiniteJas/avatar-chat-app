@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 3000;
 
 // 🛑 ВАШИ ДАННЫЕ ВСТАВЛЕНЫ ПРЯМО В КОД
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
-const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5cWg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
+const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
 const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
 
 const SEARCH_PROVIDER = "serpapi"; // "serpapi" | "tavily"
