@@ -19,6 +19,7 @@ var lastInteractionTime = new Date();
 var lastSpeakTime;
 var imgUrl = "";
 var greeted = false;
+var pendingMsgEl = null;
 
 // 🎯 НОВАЯ ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ ДЛЯ ВЫБРАННОГО ЯЗЫКА
 var selectedLanguage = "ru"; // по умолчанию русский
@@ -30,6 +31,45 @@ var runId = null;
 var functionCallsEndpoint = '/api/assistant';
 
 // ==== Chat UI helpers ====
+// pending UI
+var pendingMsgEl = null;
+
+function showPending(text) {
+    const list = chatEl();
+    if (!list) return;
+    // создаём msg контейнер как у ассистента
+    const msg = document.createElement('div');
+    msg.className = 'msg msg--assistant pending';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg__bubble';
+    // простой спиннер (inline SVG) + текст
+    bubble.innerHTML =
+        '<span class="spin" style="display:inline-block;vertical-align:-2px;margin-right:8px;width:16px;height:16px">' +
+        '<svg viewBox="0 0 50 50" style="width:16px;height:16px"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-dasharray="31.4 188.4"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>' +
+        '</span>' +
+        '<span class="pending-text"></span>';
+
+    bubble.querySelector('.pending-text').textContent = text || 'Отправляем запрос…';
+    msg.appendChild(bubble);
+    list.appendChild(msg);
+    pendingMsgEl = msg;
+    scrollChatToBottom();
+}
+
+function updatePending(text) {
+    if (!pendingMsgEl) return;
+    const el = pendingMsgEl.querySelector('.pending-text');
+    if (el) el.textContent = text;
+}
+
+function removePending() {
+    if (!pendingMsgEl) return;
+    const parent = pendingMsgEl.parentNode;
+    if (parent) parent.removeChild(pendingMsgEl);
+    pendingMsgEl = null;
+}
+
 function chatEl() {
     return document.getElementById('chatHistoryList');
 }
@@ -491,8 +531,10 @@ async function createThread(userQuery) {
         const thread = await response.json();
         threadId = thread.id;
         fetchAndRenderThreadMessages();
+        showPending('Отправили запрос…');
         console.log('Thread created via proxy:', threadId);
         runAssistant();
+
     } catch (error) {
         console.error('Error creating thread:', error);
         displayError('Ошибка создания беседы');
@@ -508,6 +550,7 @@ async function addMessageToThread(userQuery) {
         });
         if (!response.ok) throw new Error('Failed to add message');
         console.log('Message added to thread via proxy');
+        showPending('Отправили запрос…');
         runAssistant();
     } catch (error) {
         console.error('Error adding message:', error);
@@ -541,17 +584,22 @@ async function checkRunStatus() {
         console.log('Run status:', status.status);
 
         if (status.status === 'completed') {
+            removePending();
             getAssistantResponse();
         } else if (status.status === 'requires_action') {
+            updatePending('Ищем по источникам…');
             handleFunctionCalls(status.required_action.submit_tool_outputs.tool_calls);
-        } else if (status.status === 'in_progress') {
+        } else if (status.status === 'in_progress' || status.status === 'queued') {
+            updatePending('Думаю…');
             setTimeout(checkRunStatus, 1000);
         } else if (status.status === 'failed') {
-            console.error('Assistant run failed:', status.last_error);
-            displayError('Ошибка выполнения запроса');
+            updatePending('Ошибка при обработке запроса');
+            // через пару секунд уберём заглушку
+            setTimeout(removePending, 2000);
         } else {
             setTimeout(checkRunStatus, 1000);
         }
+
     } catch (error) {
         console.error('Error checking status:', error);
         displayError('Ошибка проверки статуса');
@@ -616,6 +664,7 @@ async function getAssistantResponse() {
 
         if (assistantMessage && assistantMessage.content[0]) {
             const responseText = assistantMessage.content[0].text.value;
+            removePending();
             console.log('Assistant response:', responseText.substring(0, 100) + "...");
             appendAssistantMessage(responseText);
             displayAndSpeakResponse(responseText, selectedLanguage);
@@ -624,6 +673,7 @@ async function getAssistantResponse() {
             if (lastAssistantMessage && lastAssistantMessage.content[0]) {
                 const responseText = lastAssistantMessage.content[0].text.value;
                 console.log('Assistant response (fallback):', responseText.substring(0, 100) + "...");
+                removePending();
                 appendAssistantMessage(responseText);
                 displayAndSpeakResponse(responseText, selectedLanguage);
             } else {
