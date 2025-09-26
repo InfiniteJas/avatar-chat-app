@@ -11,7 +11,7 @@
 <body>
 <h1>Talking Avatar Chat Demo</h1>
 
-<div id="configuration">
+<div id="configuration" style="display: none;">
   <h2 style="background-color: white; width: 300px;">Azure Speech Resource</h2>
   <div id="azureSpeechResource" style="display: flex;align-items: center; flex-wrap: wrap;">
     <div>
@@ -23,12 +23,12 @@
         <option value="southcentralus">South Central US</option>
         <option value="northeurope">North Europe</option>
         <option value="swedencentral">Sweden Central</option>
-        <option value="eastus2">East US 2</option>
+        <option value="eastus2" selected>East US 2</option>
       </select>
     </div>
     <div>
       <label style="font-size: medium;" for="APIKey">API Key:</label>
-      <input id="APIKey" type="password" size="32" style="font-size: medium;" />
+      <input id="APIKey" type="password" size="32" style="font-size: medium;" value="EIoIUPiWHfwipyE98dOEbS2C29O5ipQCOKFzvoYw6Wfis48p9ufTJQQJ99BIACHYHv6XJ3w3AAAYACOGHLHa" />
     </div>
   </div>
   <div style="background-color: white; width: 300px;">
@@ -41,13 +41,37 @@
 
   <h2 style="background-color: white; width: 300px;">Azure OpenAI Resource</h2>
   <label style="font-size: medium;" for="azureOpenAIEndpoint">Endpoint:</label>
-  <input id="azureOpenAIEndpoint" type="text" size="64" style="font-size: medium;"></input><br />
+  <input id="azureOpenAIEndpoint" type="text" size="64" style="font-size: medium;" value="https://a-ass55.openai.azure.com/"></input><br />
   <label style="font-size: medium;" for="azureOpenAIApiKey">API Key:</label>
-  <input id="azureOpenAIApiKey" type="password" size="32" style="font-size: medium;" /><br />
+  <input id="azureOpenAIApiKey" type="password" size="32" style="font-size: medium;" value="FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5cWg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG" /><br />
   <label style="font-size: medium;" for="azureOpenAIDeploymentName">Deployment Name:</label>
-  <input id="azureOpenAIDeploymentName" type="text" size="32" style="font-size: medium;" /><br />
+  <input id="azureOpenAIDeploymentName" type="text" size="32" style="font-size: medium;" value="gpt-4o" /><br />
   <label style="font-size: medium;"  for="prompt">System Prompt:</label><br/>
-  <textarea id="prompt" style="max-width: 640px;">You are an AI assistant that helps people find information.</textarea>
+  <textarea id="prompt" style="max-width: 640px;">Ты — персональный голосовой помощник Олжаса Абаевича.
+
+ОБЯЗАТЕЛЬНЫЕ ПРАВИЛА:
+1. На ЛЮБОЙ вопрос вызывай db_query
+2. В "message" переводи на русский (БД работает только с русским)
+3. session_id всегда "12345"
+
+ВАЖНО - ЯЗЫК ОТВЕТА ПОЛЬЗОВАТЕЛЮ:
+- Если исходный вопрос был на русском → отвечай на русском
+- Если исходный вопрос был на казахском → отвечай на казахском
+- Если смешанный вопрос → отвечай на казахском
+
+ПРАВИЛА ОТВЕТА:
+- Кратко: 1-2 предложения
+- Числа и даты цифрами (2024, 145, 5.7%)
+- Чистый текст без мусорных слов
+
+ПРИМЕРЫ:
+Вопрос на казахском: "Павлодар облысы бойынша қанша өтініш?"
+→ db_query: "Сколько заявок по Павлодарской области?"
+→ Ответ пользователю НА КАЗАХСКОМ: "Павлодар облысы бойынша 17577 өтініш берілді."
+
+Вопрос на русском: "Сколько заявок по Павлодару?"
+→ db_query: "Сколько заявок по Павлодару?"
+→ Ответ пользователю НА РУССКОМ: "По Павлодарской области подано 17577 заявок."</textarea>
   <div style="background-color: white; width: 300px;">
     <input type="checkbox" id="enableOyd" onchange="window.updataEnableOyd()">Enable On Your Data</input><br />
   </div>
@@ -86,26 +110,31 @@
     <input type="checkbox" id="useBuiltInVoice" style="width: 12px;" disabled>Use Built-In Voice</input><br />
   </div>
   <div style="background-color: white; width: 200px;">
-    <input type="checkbox" id="autoReconnectAvatar">Auto Reconnect</input><br />
+    <input type="checkbox" id="autoReconnectAvatar" checked>Auto Reconnect</input><br />
   </div>
   <div style="background-color: white; width: 200px;">
     <input type="checkbox" id="useLocalVideoForIdle" onchange="window.updateLocalVideoForIdle()">Use Local Video for Idle</input><br />
   </div>
   <div style="background-color: white; width: 200px;">
-    <input type="checkbox" id="showSubtitles">Show Subtitles</input><br />
+    <input type="checkbox" id="showSubtitles" checked>Show Subtitles</input><br />
   </div>
   <br />
 </div>
 
-<button id="startSession" onclick="window.startSession()">Open Avatar Session</button>
-<!-- 🎯 НОВЫЕ КНОПКИ: Две кнопки микрофона для выбора языка -->
-<button id="microphoneRussian" onclick="window.microphoneRussian()" disabled style="background-color: #4CAF50;">🎤 Русский</button>
-<button id="microphoneKazakh" onclick="window.microphoneKazakh()" disabled style="background-color: #2196F3;">🎤 Қазақша</button>
-<button id="stopSpeaking" onclick="stopSpeaking()" disabled>Stop Speaking</button>
-<button id="clearChatHistory" onclick="window.clearChatHistory()">Clear Chat History</button>
-<button id="stopSession" onclick="window.stopSession()" disabled>Close Avatar Session</button>
+<!-- 🎯 АВТОЗАПУСК КНОПКИ -->
+<div style="text-align: center; margin: 20px 0;">
+  <button id="startSession" onclick="window.startSession()" style="background-color: #4CAF50; font-size: 18px; padding: 15px 30px;">🚀 Запустить Аватар</button>
+</div>
 
-<div id="videoContainer" style="position: relative; max-width: 960px;">
+<div style="text-align: center; margin: 20px 0;">
+  <button id="microphoneRussian" onclick="window.microphoneRussian()" disabled style="background-color: #4CAF50; font-size: 16px; margin: 0 10px;">🎤 Русский</button>
+  <button id="microphoneKazakh" onclick="window.microphoneKazakh()" disabled style="background-color: #2196F3; font-size: 16px; margin: 0 10px;">🎤 Қазақша</button>
+  <button id="stopSpeaking" onclick="stopSpeaking()" disabled style="margin: 0 10px;">Stop Speaking</button>
+  <button id="clearChatHistory" onclick="window.clearChatHistory()" style="margin: 0 10px;">Clear Chat History</button>
+  <button id="stopSession" onclick="window.stopSession()" disabled style="margin: 0 10px;">Close Avatar Session</button>
+</div>
+
+<div id="videoContainer" style="position: relative; max-width: 960px; margin: 0 auto;">
   <div id="overlayArea" style="position: absolute;">
     <div id="chatHistory" style="
         border: none;
