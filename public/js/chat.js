@@ -512,13 +512,11 @@ async function getAssistantResponse() {
 
 function cleanTextForTTS(rawText, lang) {
     let t = String(rawText);
+    
     t = t.replace(/[\/\\]/g, ' ');
     t = t.replace(/[№%()\-–—_:;[\]{}<>«»]/g, ' ');
-    t = t.replace(/\.{2,}/g, '.');
-    t = t.replace(/!{2,}/g, '!');
-    t = t.replace(/\?{2,}/g, '?');
     t = t.replace(/\s+/g, ' ').trim();
-    console.log(`🧹 Очистка текста (${lang}): "${rawText}" → "${t}"`);
+    
     return t;
 }
 
