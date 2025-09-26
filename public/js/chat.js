@@ -29,6 +29,129 @@ var threadId = null;
 var runId = null;
 var functionCallsEndpoint = '/api/assistant';
 
+// ==== Chat UI helpers ====
+function chatEl() {
+    return document.getElementById('chatHistoryList');
+}
+
+function scrollChatToBottom() {
+    const el = chatEl();
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+}
+
+function renderMessageBubble(role, text, timestampSec) {
+    const el = chatEl();
+    if (!el) return;
+
+    // --- helpers внутри функции ---
+    // добавляет в container текст, превращая plain-URL в <a>
+    function appendWithPlainLinks(container, raw) {
+        const urlRe = /(https?:\/\/[^\s<>()]+|www\.[^\s<>()]+)/gi;
+        let i = 0, m;
+        while ((m = urlRe.exec(raw)) !== null) {
+            if (m.index > i) container.appendChild(document.createTextNode(raw.slice(i, m.index)));
+
+            let visible = m[0];
+            let href = /^https?:\/\//i.test(visible) ? visible : 'https://' + visible;
+
+            // срезаем хвостовую пунктуацию из href, но возвращаем её как текст
+            const cut = href.match(/^(.*?)([)\].,!?:;]+)$/);
+            let tail = "";
+            if (cut) { href = cut[1]; tail = cut[2]; visible = visible.replace(/([)\].,!?:;]+)$/, ''); }
+
+            const a = document.createElement('a');
+            a.href = href;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.textContent = visible;
+            container.appendChild(a);
+
+            if (tail) container.appendChild(document.createTextNode(tail));
+            i = m.index + m[0].length;
+        }
+        if (i < raw.length) container.appendChild(document.createTextNode(raw.slice(i)));
+    }
+
+    // сначала обрабатываем markdown-ссылки, остатки — через plain-URL
+    function appendWithMarkdownThenLinks(container, raw) {
+        const mdRe = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+        let i = 0, m;
+        while ((m = mdRe.exec(raw)) !== null) {
+            if (m.index > i) appendWithPlainLinks(container, raw.slice(i, m.index));
+            const a = document.createElement('a');
+            a.href = m[2];
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.textContent = m[1];
+            container.appendChild(a);
+            i = m.index + m[0].length;
+        }
+        if (i < raw.length) appendWithPlainLinks(container, raw.slice(i));
+    }
+    // --- /helpers ---
+
+    const msg = document.createElement('div');
+    msg.className = 'msg ' + (role === 'user' ? 'msg--user' : 'msg--assistant');
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg__bubble';
+
+    // безопасно добавляем контент с кликабельными ссылками
+    appendWithMarkdownThenLinks(bubble, String(text ?? '').trim());
+
+    // (опционально) мини-таймстемп
+    if (timestampSec) {
+        const small = document.createElement('small');
+        small.style.display = 'block';
+        small.style.opacity = '0.6';
+        small.style.marginTop = '4px';
+        small.textContent = new Date(timestampSec * 1000).toLocaleTimeString();
+        bubble.appendChild(small);
+    }
+
+    msg.appendChild(bubble);
+    el.appendChild(msg);
+}
+
+
+function appendUserMessage(text) {
+    renderMessageBubble('user', text);
+    scrollChatToBottom();
+}
+
+function appendAssistantMessage(text) {
+    renderMessageBubble('assistant', text);
+    scrollChatToBottom();
+}
+
+// загрузка всей истории из backend-а (по текущему threadId)
+async function fetchAndRenderThreadMessages() {
+    const el = chatEl();
+    if (!el || !threadId) return;
+    try {
+        const res = await fetch(`/api/threads/${threadId}/messages`);
+        if (!res.ok) throw new Error('Failed to load messages');
+        const payload = await res.json();
+
+        // очищаем и рендерим по возрастанию времени
+        el.innerHTML = '';
+        const items = (payload.data || []).slice().sort((a, b) => a.created_at - b.created_at);
+
+        for (const m of items) {
+            const role = m.role === 'user' ? 'user' : 'assistant';
+            const block = (m.content && m.content[0] && m.content[0].type === 'text')
+                ? m.content[0].text.value
+                : '';
+            renderMessageBubble(role, block, m.created_at);
+        }
+        scrollChatToBottom();
+    } catch (err) {
+        console.error('fetchAndRenderThreadMessages error:', err);
+    }
+}
+
+
 // Connect to avatar service
 function connectAvatar() {
     const cogSvcRegion = document.getElementById('region').value;
@@ -367,6 +490,7 @@ async function createThread(userQuery) {
         }
         const thread = await response.json();
         threadId = thread.id;
+        fetchAndRenderThreadMessages();
         console.log('Thread created via proxy:', threadId);
         runAssistant();
     } catch (error) {
@@ -493,12 +617,14 @@ async function getAssistantResponse() {
         if (assistantMessage && assistantMessage.content[0]) {
             const responseText = assistantMessage.content[0].text.value;
             console.log('Assistant response:', responseText.substring(0, 100) + "...");
+            appendAssistantMessage(responseText);
             displayAndSpeakResponse(responseText, selectedLanguage);
         } else {
             const lastAssistantMessage = messagesData.data.find(msg => msg.role === 'assistant');
             if (lastAssistantMessage && lastAssistantMessage.content[0]) {
                 const responseText = lastAssistantMessage.content[0].text.value;
                 console.log('Assistant response (fallback):', responseText.substring(0, 100) + "...");
+                appendAssistantMessage(responseText);
                 displayAndSpeakResponse(responseText, selectedLanguage);
             } else {
                 displayError('Не удалось получить ответ ассистента');
@@ -669,7 +795,7 @@ function startMicrophone(language) {
             //             document.getElementById(buttonId).disabled = false;
             //         });
             // }
-
+            appendUserMessage(userQuery);
             // 🎯 ПЕРЕДАЕМ ВЫБРАННЫЙ ЯЗЫК В handleUserQuery
             handleUserQuery(userQuery, "", "", language);
         }
@@ -770,6 +896,8 @@ window.stopSession = () => {
     threadId = null;
     runId = null;
     disconnectAvatar();
+    const list = document.getElementById('chatHistoryList');
+    if (list) list.innerHTML = '';
 };
 
 window.clearChatHistory = () => {
@@ -777,6 +905,8 @@ window.clearChatHistory = () => {
     threadId = null;
     runId = null;
     initMessages();
+    const list = document.getElementById('chatHistoryList');
+    if (list) list.innerHTML = '';
 };
 
 window.updateTypeMessageBox = () => {
@@ -797,6 +927,7 @@ window.updateTypeMessageBox = () => {
                     userQueryHTML = "<br/>" + userQueryHTML;
                 }
                 if (userQuery !== '') {
+                    appendUserMessage(userQuery.trim(''));
                     // 🎯 При вводе текста используем русский по умолчанию
                     handleUserQuery(userQuery.trim(''), userQueryHTML, imgUrl, selectedLanguage);
                     document.getElementById('userMessageBox').innerHTML = '';

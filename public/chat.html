@@ -161,8 +161,7 @@
     <label style="font-size: medium;" for="talkingAvatarCharacter">Avatar Character:</label>
     <input id="talkingAvatarCharacter" type="text" size="16" style="font-size: medium;" value="lisa"></input><br />
     <label style="font-size: medium;" for="talkingAvatarStyle">Avatar Style:</label>
-    <input id="talkingAvatarStyle" type="text" size="16" style="font-size: medium;"
-      value="casual-sitting"></input><br />
+    <input id="talkingAvatarStyle" type="text" size="16" style="font-size: medium;" value="business"></input><br />
     <div style="background-color: white; width: 400px;">
       <input type="checkbox" id="customizedAvatar" onchange="window.updateCustomAvatarBox()">Custom Avatar</input>
       <input type="checkbox" id="useBuiltInVoice" style="width: 12px;" disabled>Use Built-In Voice</input><br />
@@ -228,7 +227,7 @@
           Session</button>
       </div> -->
       <div style="display: flex; justify-content: center; margin-top: 32px;">
-        <button id="startSession" onclick="window.startSession()" class="btn  btn--success">
+        <button id="startSession" onclick="window.startSession()" class="btn btn--pill btn--success">
           Запустить Аватар
         </button>
       </div>
@@ -246,14 +245,15 @@
 
       </div>
       <div class="toolbar toolbar--wrap toolbar--compact" style="display:flex;justify-content:center; margin-top:64px;">
-        <button id="stopSpeaking" onclick="stopSpeaking()" disabled class="btn btn--square" title="Остановить озвучку">
+        <button id="stopSpeaking" onclick="stopSpeaking()" disabled class="btn btn--pill btn--square"
+          title="Остановить озвучку">
           ⏹
         </button>
-        <button id="clearChatHistory" onclick="window.clearChatHistory()" class="btn btn--square"
+        <button id="clearChatHistory" onclick="window.clearChatHistory()" class="btn btn--pill btn--square"
           title="Очистить историю чата">
           🧹
         </button>
-        <button id="stopSession" onclick="window.stopSession()" disabled class="btn btn--square"
+        <button id="stopSession" onclick="window.stopSession()" disabled class="btn btn--pill btn--square"
           title="Завершить сессию аватара">
           ✖
         </button>
@@ -271,17 +271,15 @@
       </header>
       <div class="chat-body">
         <!-- пространство под контент/историю (если появится) -->
-        <div class="chat-spacer"></div>
+        <div id="chatHistoryList" class="chat-history"></div>
+        <div class="chat-spacer">
+        </div>
 
-        <!-- Docked input: тянется на всю ширину и прижат вниз -->
         <div class="typebox typebox--dock">
-          <!-- чекбокс оставляем в DOM (на случай, если его дергает chat.js), но скрываем -->
           <div id="showTypeMessageCheckbox" class="typebox__toggle" hidden>
             <input type="checkbox" id="showTypeMessage" onchange="window.updateTypeMessageBox()" disabled />
             <label for="showTypeMessage">Type Message</label>
           </div>
-
-          <!-- поле + иконка вложения справа -->
           <div class="typebox__row">
             <div id="userMessageBox" class="typebox__editor" type="text" contentEditable="true"></div>
 
