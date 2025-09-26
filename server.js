@@ -1,4 +1,4 @@
-// server.js (ИСПРАВЛЕННАЯ ВЕРСИЯ С ЛУЧШИМ ОПРЕДЕЛЕНИЕМ ЯЗЫКА)
+// server.js (ИТОГОВАЯ ВЕРСИЯ С WREN AI API)
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -7,15 +7,19 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🛑 ВАШИ ДАННЫЕ
+// Azure OpenAI настройки
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
 const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
 const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
 
-const SEARCH_PROVIDER = "serpapi"; // "serpapi" | "tavily"
+// Настройки поиска
+const SEARCH_PROVIDER = "serpapi";
 const SERPAPI_API_KEY = "5b428af6a0a873bbd5d882ce73d5b2aa95e16db84fecebeef032ba7ea7fd47fb";
 
-const DB_WEBHOOK_URL = "https://gshsh.nitec-ai.kz/webhook/f305536a-f827-4c38-9b72-ace15bf3f3c1";
+// Новый API для работы с базой данных
+const WREN_AI_URL = "https://cloud.getwren.ai/api/v1/ask";
+const WREN_API_TOKEN = "sk-Q2nNDxNKzoH77Q";
+const PROJECT_ID = 10875;
 
 app.use(cors());
 app.use(express.json());
@@ -99,7 +103,6 @@ function formatResults(items = []) {
     .join('\n\n');
 }
 
-// SerpAPI (Google)
 async function searchSerpAPI(query) {
   if (!SERPAPI_API_KEY || SERPAPI_API_KEY.startsWith('<PASTE')) {
     throw new Error('SERPAPI_API_KEY не задан');
@@ -122,68 +125,8 @@ async function searchSerpAPI(query) {
   return formatResults(organic);
 }
 
-// Tavily (опционально)
-async function searchTavily(query) {
-  if (!TAVILY_API_KEY || TAVILY_API_KEY.startsWith('<OPTIONAL')) {
-    throw new Error('TAVILY_API_KEY не задан');
-  }
-  const url = 'https://api.tavily.com/search';
-  const body = {
-    query,
-    search_depth: 'advanced',
-    include_answer: true,
-    max_results: 5,
-  };
-  const { data } = await axios.post(url, body, {
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${TAVILY_API_KEY}`,
-    },
-    timeout: 20000,
-  });
-
-  const items = (data.results || []).map((r) => ({
-    title: r.title,
-    url: r.url,
-    snippet: r.content,
-  }));
-  const base = formatResults(items);
-  return data.answer ? `${base}\n\nКраткий вывод: ${data.answer}` : base;
-}
-
 async function performSearch(query) {
-  switch ((SEARCH_PROVIDER || '').toLowerCase()) {
-    case 'tavily':
-      return await searchTavily(query);
-    case 'serpapi':
-    default:
-      return await searchSerpAPI(query);
-  }
-}
-
-// 🎯 УЛУЧШЕННАЯ функция определения языка
-function detectLanguage(text) {
-  if (!text || typeof text !== 'string') return 'ru';
-  
-  // Казахские специфические символы  
-  const kazakhChars = /[әіңғүұқөһ]/gi;
-  
-  // Подсчитываем слова с казахскими символами
-  const words = text.split(/\s+/).filter(w => w.length > 1); // исключаем короткие слова
-  const kazakhMatches = text.match(kazakhChars) || [];
-  
-  // Если в тексте есть казахские символы - это казахский
-  const kazakhPercentage = kazakhMatches.length > 0 ? (kazakhMatches.length / text.length) * 100 : 0;
-  
-  console.log(`🔍 Анализ языка: "${text.substring(0, 50)}..."`);
-  console.log(`   Казахских символов: ${kazakhMatches.length} из ${text.length} (${kazakhPercentage.toFixed(1)}%)`);
-  
-  // Если есть хотя бы один казахский символ - считаем казахским
-  const isKazakh = kazakhMatches.length > 0;
-  
-  console.log(`   Результат: ${isKazakh ? 'kk' : 'ru'}`);
-  
-  return isKazakh ? 'kk' : 'ru';
+  return await searchSerpAPI(query);
 }
 
 /** ---------- Обработчик кастомных функций ассистента ---------- */
@@ -203,38 +146,50 @@ app.post('/api/assistant', async (req, res) => {
         return res.json({ success: false, error: "message (string) is required" });
       }
 
-      // 🔒 Жёстко задаём session_id = "12345"
+      // Формируем запрос для Wren AI
       const payload = {
-        sessionId: "12345",
-        message: message  // Теперь всегда приходит на русском из LLM
+        projectId: PROJECT_ID,
+        question: message
       };
 
-      console.log(`📤 Отправляем в БД: ${JSON.stringify(payload)}`);
+      console.log(`📤 Отправляем в Wren AI: ${JSON.stringify(payload)}`);
 
-      const dbResp = await axios.post(DB_WEBHOOK_URL, payload, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 20000
+      const wrenResponse = await axios.post(WREN_AI_URL, payload, {
+        headers: { 
+          'Authorization': `Bearer ${WREN_API_TOKEN}`,
+          'Content-Type': 'application/json' 
+        },
+        timeout: 30000
       });
 
-      console.log(`📥 Ответ от БД:`, dbResp.data);
+      console.log(`📥 Ответ от Wren AI:`, wrenResponse.data);
 
-      // Пытаемся найти текст ответа в популярных полях
-      const d = dbResp.data || {};
-      const text =
-        d.answer ||
-        d.message ||
-        d.result ||
-        (typeof d === 'string' ? d : JSON.stringify(d));
+      const responseData = wrenResponse.data || {};
+      const summary = responseData.summary || 'Данные не найдены';
 
-      // 🎯 УБИРАЕМ определение языка - теперь это делает фронтенд
       return res.json({ 
         success: true, 
-        result: text || "Пустой ответ от сервиса."
-        // lang больше не возвращаем
+        result: summary,
+        // Дополнительная информация для отладки
+        sql: responseData.sql,
+        threadId: responseData.threadId,
+        id: responseData.id
       });
+
     } catch (error) {
       console.error("❌ db_query error:", error.response?.data || error.message);
-      return res.json({ success: false, error: "Ошибка при обращении к БД-сервису." });
+      
+      // Более детальная обработка ошибок
+      let errorMessage = "Ошибка при обращении к системе аналитики";
+      if (error.response?.status === 401) {
+        errorMessage = "Ошибка авторизации в системе аналитики";
+      } else if (error.response?.status === 404) {
+        errorMessage = "Проект не найден в системе аналитики";
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = "Превышено время ожидания ответа от системы";
+      }
+
+      return res.json({ success: false, error: errorMessage });
     }
   }
 
@@ -276,4 +231,5 @@ app.post('/api/assistant', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`🔍 Search provider: ${SEARCH_PROVIDER}`);
+  console.log(`📊 Wren AI Project ID: ${PROJECT_ID}`);
 });
