@@ -545,12 +545,12 @@ async function checkRunStatus() {
         } else if (status.status === 'requires_action') {
             handleFunctionCalls(status.required_action.submit_tool_outputs.tool_calls);
         } else if (status.status === 'in_progress') {
-            setTimeout(checkRunStatus, 2000);
+            setTimeout(checkRunStatus, 1000);
         } else if (status.status === 'failed') {
             console.error('Assistant run failed:', status.last_error);
             displayError('Ошибка выполнения запроса');
         } else {
-            setTimeout(checkRunStatus, 2000);
+            setTimeout(checkRunStatus, 1000);
         }
     } catch (error) {
         console.error('Error checking status:', error);
@@ -835,7 +835,7 @@ function checkHung() {
                     }
                 }
             }
-        }, 2000);
+        }, 1000);
     }
 }
 
@@ -858,7 +858,7 @@ window.onload = () => {
     setInterval(() => {
         checkHung();
         checkLastSpeak();
-    }, 2000);
+    }, 1000);
 };
 
 window.startSession = () => {
