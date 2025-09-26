@@ -512,11 +512,13 @@ async function getAssistantResponse() {
 
 function cleanTextForTTS(rawText, lang) {
     let t = String(rawText);
-    
     t = t.replace(/[\/\\]/g, ' ');
     t = t.replace(/[№%()\-–—_:;[\]{}<>«»]/g, ' ');
+    t = t.replace(/\.{2,}/g, '.');
+    t = t.replace(/!{2,}/g, '!');
+    t = t.replace(/\?{2,}/g, '?');
     t = t.replace(/\s+/g, ' ').trim();
-    
+    console.log(`🧹 Очистка текста (${lang}): "${rawText}" → "${t}"`);
     return t;
 }
 
@@ -524,13 +526,7 @@ function cleanTextForTTS(rawText, lang) {
 function displayAndSpeakResponse(text, language) {
     let finalText = text;
 
-    // Приветствие только один раз
-    if (!greeted) {
-        finalText = `Армысыз, Олжас Абаевич! ${text}`;
-        greeted = true;
-    }
-
-    // 🎯 ИСПОЛЬЗУЕМ ПЕРЕДАННЫЙ ЯЗЫК (НЕ АВТОДЕТЕКТ)
+    // Убрали приветствие - сразу используем полученный текст
     console.log(`🌍 Используем выбранный язык: ${language}`);
 
     // Очистка текста
@@ -598,12 +594,12 @@ function displayError(message) {
 
 // 🎯 НОВЫЕ ФУНКЦИИ: Две кнопки микрофона
 window.microphoneRussian = () => {
-    console.log("Выбран русский микрофон");
+    console.log("🎤 Выбран русский микрофон");
     startMicrophone("ru");
 };
 
 window.microphoneKazakh = () => {
-    console.log("Выбран казахский микрофон");
+    console.log("🎤 Выбран казахский микрофон");
     startMicrophone("kk");
 };
 
@@ -621,7 +617,7 @@ function startMicrophone(language) {
         document.getElementById(buttonId).disabled = true;
         speechRecognizer.stopContinuousRecognitionAsync(
             () => {
-                document.getElementById(buttonId).innerHTML = isRussianActive ? 'Русский' : 'Қазақша';
+                document.getElementById(buttonId).innerHTML = isRussianActive ? '🎤 Русский' : '🎤 Қазақша';
                 document.getElementById(buttonId).disabled = false;
                 document.getElementById(otherButtonId).disabled = false; // Включаем другую кнопку
             }, (err) => {
@@ -662,7 +658,7 @@ function startMicrophone(language) {
                 document.getElementById(buttonId).disabled = true;
                 speechRecognizer.stopContinuousRecognitionAsync(
                     () => {
-                        document.getElementById(buttonId).innerHTML = isRussianActive ? 'Русский' : 'Қазақша';
+                        document.getElementById(buttonId).innerHTML = isRussianActive ? '🎤 Русский' : '🎤 Қазақша';
                         document.getElementById(buttonId).disabled = false;
                         document.getElementById(otherButtonId).disabled = false;
                     }, (err) => {
@@ -678,7 +674,7 @@ function startMicrophone(language) {
 
     speechRecognizer.startContinuousRecognitionAsync(
         () => {
-            document.getElementById(buttonId).innerHTML = isRussianActive ? '⏹ Русский' : '⏹ Қазақша';
+            document.getElementById(buttonId).innerHTML = isRussianActive ? 'Stop Русский' : 'Stop Қазақша';
             document.getElementById(buttonId).disabled = false;
             document.getElementById(otherButtonId).disabled = true; // Блокируем другую кнопку
         }, (err) => {
