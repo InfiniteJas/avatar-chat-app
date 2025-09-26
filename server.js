@@ -203,14 +203,10 @@ app.post('/api/assistant', async (req, res) => {
         return res.json({ success: false, error: "message (string) is required" });
       }
 
-      // 🎯 ИСПРАВЛЕНИЕ: Определяем язык по ВОПРОСУ пользователя, а не по ответу БД
-      const userLanguage = detectLanguage(message);
-      console.log(`🗣️ Пользователь спросил на языке: ${userLanguage}`);
-
       // 🔒 Жёстко задаём session_id = "12345"
       const payload = {
         sessionId: "12345",
-        message: message
+        message: message  // Теперь всегда приходит на русском из LLM
       };
 
       console.log(`📤 Отправляем в БД: ${JSON.stringify(payload)}`);
@@ -230,11 +226,11 @@ app.post('/api/assistant', async (req, res) => {
         d.result ||
         (typeof d === 'string' ? d : JSON.stringify(d));
 
-      // 🎯 ИСПРАВЛЕНИЕ: Возвращаем язык ВОПРОСА, а не ответа
+      // 🎯 УБИРАЕМ определение языка - теперь это делает фронтенд
       return res.json({ 
         success: true, 
-        result: text || "Пустой ответ от сервиса.",
-        lang: userLanguage  // <- Используем язык вопроса пользователя
+        result: text || "Пустой ответ от сервиса."
+        // lang больше не возвращаем
       });
     } catch (error) {
       console.error("❌ db_query error:", error.response?.data || error.message);
