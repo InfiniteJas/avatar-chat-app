@@ -7,7 +7,6 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Azure OpenAI настройки
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
 const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
 
@@ -158,18 +157,26 @@ async function callOriginalDB(message) {
     };
 
     console.log(`📤 Отправляем в оригинальную БД: ${JSON.stringify(payload)}`);
+    console.log(`🌐 URL: ${DB_WEBHOOK_URL}`);
 
     const response = await axios.post(DB_WEBHOOK_URL, payload, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 30000,  // Вернул 30 секунд
-      // Добавляем настройки для лучшей совместимости
-      maxRedirects: 5,
+      headers: { 
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; Government-Assistant/1.0)',
+        'Accept': 'application/json',
+        'Connection': 'close'  // Принудительно закрываем соединение
+      },
+      timeout: 25000,  // Уменьшаем до 25 секунд
+      maxRedirects: 0,  // Отключаем редиректы
       validateStatus: function (status) {
         return status >= 200 && status < 300;
-      }
+      },
+      // Отключаем keep-alive
+      httpAgent: false,
+      httpsAgent: false
     });
 
-    console.log(`📥 Ответ от оригинальной БД:`, response.data);
+    console.log(`📥 Ответ от оригинальной БД (статус: ${response.status}):`, response.data);
 
     // БД возвращает массив объектов
     let responseData = response.data;
@@ -177,6 +184,7 @@ async function callOriginalDB(message) {
     // Если это массив - берем первый элемент
     if (Array.isArray(responseData) && responseData.length > 0) {
       responseData = responseData[0];
+      console.log(`📊 Извлекли из массива:`, responseData);
     }
 
     // Ищем ответ в правильных полях
@@ -187,26 +195,32 @@ async function callOriginalDB(message) {
                    (typeof responseData === 'string' ? responseData : JSON.stringify(responseData)) ||
                    'Данные не найдены';
 
+    console.log(`✅ Итоговый результат: "${result}"`);
     return result;
+
   } catch (error) {
-    console.error('Original DB error:', error.response?.data || error.message);
-    console.error('Error details:', {
+    console.error('❌ Original DB error:', error.message);
+    console.error('🔍 Error details:', {
       code: error.code,
       status: error.response?.status,
-      message: error.message
+      timeout: error.code === 'ECONNABORTED',
+      response: error.response?.data || 'No response data'
     });
     
     if (error.code === 'ECONNABORTED') {
-      return 'Превышено время ожидания ответа от базы данных (30 сек)';
+      return 'База данных не отвечает - превышено время ожидания';
     }
     if (error.code === 'ECONNREFUSED') {
-      return 'Не удается подключиться к базе данных - сервис недоступен';
+      return 'Сервис базы данных недоступен';
     }
     if (error.code === 'ENOTFOUND') {
-      return 'Не удается найти адрес базы данных';
+      return 'Не удается найти сервер базы данных';
+    }
+    if (error.response?.status) {
+      return `Сервер БД вернул ошибку ${error.response.status}`;
     }
     
-    return `Ошибка при обращении к базе данных: ${error.message}`;
+    return `Ошибка связи с базой данных: ${error.message}`;
   }
 }
 
