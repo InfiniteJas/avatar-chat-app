@@ -1,4 +1,4 @@
-// server.js (ИТОГОВАЯ ВЕРСИЯ С WREN AI API)
+// server.js (ПРАВИТЕЛЬСТВЕННЫЙ АССИСТЕНТ - ПОЛНАЯ СИСТЕМА)
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -10,13 +10,15 @@ const PORT = process.env.PORT || 3000;
 // Azure OpenAI настройки
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
 const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
+
+// Nitec AI настройки
+const NITEC_AI_ENDPOINT = "https://nitec-ai.kz/api/chat/completions";
 const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
 
-// Настройки поиска
-const SEARCH_PROVIDER = "serpapi";
+// Поисковые системы
 const SERPAPI_API_KEY = "5b428af6a0a873bbd5d882ce73d5b2aa95e16db84fecebeef032ba7ea7fd47fb";
 
-// Новый API для работы с базой данных
+// Wren AI для базы данных
 const WREN_AI_URL = "https://cloud.getwren.ai/api/v1/ask";
 const WREN_API_TOKEN = "sk-Q2nNDxNKzoH77Q";
 const PROJECT_ID = 10875;
@@ -29,7 +31,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'chat.html'));
 });
 
-/** ---------- Вспомогательные прокси в Azure OpenAI (Assistants API) ---------- */
+/** ---------- Azure OpenAI Proxy Routes ---------- */
 const getAzureApiUrl = (p) =>
   `${AZURE_OPENAI_ENDPOINT.replace(/\/$/, '')}/openai/${p}?api-version=2024-05-01-preview`;
 
@@ -67,7 +69,6 @@ const proxyGetRequest = (req, res, azurePath) => {
     });
 };
 
-/** ---------- Роуты Assistants API ---------- */
 app.post('/api/threads', (req, res) => proxyRequest(req, res, 'POST', 'threads'));
 app.post('/api/threads/:threadId/messages', (req, res) =>
   proxyRequest(req, res, 'POST', `threads/${req.params.threadId}/messages`)
@@ -90,146 +91,171 @@ app.get('/api/threads/:threadId/messages', (req, res) =>
   proxyGetRequest(req, res, `threads/${req.params.threadId}/messages`)
 );
 
-/** ================== ВЕБ-ПОИСК (SERPAPI/TAVILY) ================== */
-function formatResults(items = []) {
-  if (!items.length) return 'По вашему запросу ничего не найдено.';
-  return items
-    .map(
-      (it, i) =>
-        `Источник ${i + 1}:\nЗаголовок: ${it.title}\nURL: ${it.url}\nФрагмент: ${
-          it.snippet ? it.snippet.slice(0, 400) : ''
-        }`
-    )
-    .join('\n\n');
-}
+/** ---------- Utility Functions ---------- */
 
-async function searchSerpAPI(query) {
-  if (!SERPAPI_API_KEY || SERPAPI_API_KEY.startsWith('<PASTE')) {
-    throw new Error('SERPAPI_API_KEY не задан');
+// SerpAPI поиск
+async function performSerpAPISearch(query, focus = "general") {
+  if (!SERPAPI_API_KEY) {
+    throw new Error('SERPAPI_API_KEY не настроен');
   }
-  const url = 'https://serpapi.com/search.json';
+
+  let searchQuery = query;
+  if (focus === "law") {
+    searchQuery = `${query} законодательство Казахстан НПА кодекс`;
+  } else if (focus === "practices") {
+    searchQuery = `${query} международный опыт best practices мировая практика`;
+  }
+
   const params = {
     engine: 'google',
-    q: query,
+    q: searchQuery,
     num: 5,
     hl: 'ru',
     gl: 'ru',
     api_key: SERPAPI_API_KEY,
   };
-  const { data } = await axios.get(url, { params, timeout: 20000 });
-  const organic = (data.organic_results || []).map((r) => ({
-    title: r.title,
-    url: r.link,
-    snippet: r.snippet || (r.snippet_highlighted_words || []).join(' '),
-  }));
-  return formatResults(organic);
+
+  try {
+    const { data } = await axios.get('https://serpapi.com/search.json', { params, timeout: 20000 });
+    const results = (data.organic_results || []).slice(0, 3).map((r, i) => 
+      `${i + 1}. ${r.title}\n${r.snippet || 'Нет описания'}\nИсточник: ${r.link}`
+    ).join('\n\n');
+    
+    return results || 'Результаты поиска не найдены';
+  } catch (error) {
+    console.error('SerpAPI search error:', error.message);
+    return 'Ошибка при выполнении поиска';
+  }
 }
 
-async function performSearch(query) {
-  return await searchSerpAPI(query);
+// Nitec AI запрос
+async function callNitecAI(model, userQuery) {
+  try {
+    const response = await axios.post(NITEC_AI_ENDPOINT, {
+      model: model,
+      stream: false,
+      messages: [{ role: 'user', content: userQuery }]
+    }, {
+      headers: {
+        'Authorization': `Bearer ${NITEC_AI_BEARER_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    const content = response.data?.choices?.[0]?.message?.content || 'Ответ не получен';
+    return content;
+  } catch (error) {
+    console.error(`Nitec AI (${model}) error:`, error.response?.data || error.message);
+    return `Ошибка при обращении к модели ${model}`;
+  }
 }
 
-/** ---------- Обработчик кастомных функций ассистента ---------- */
+// Wren AI запрос
+async function callWrenAI(question) {
+  try {
+    const payload = { projectId: PROJECT_ID, question: question };
+    const response = await axios.post(WREN_AI_URL, payload, {
+      headers: { 
+        'Authorization': `Bearer ${WREN_API_TOKEN}`,
+        'Content-Type': 'application/json' 
+      },
+      timeout: 30000
+    });
+
+    return response.data?.summary || response.data?.answer || 'Данные не найдены';
+  } catch (error) {
+    console.error('Wren AI error:', error.response?.data || error.message);
+    return 'Ошибка при обращении к базе данных';
+  }
+}
+
+/** ---------- Assistant Function Handlers ---------- */
 app.post('/api/assistant', async (req, res) => {
   const { function_name, arguments: args } = req.body || {};
 
-  console.log('\n=============================================');
-  console.log('  >>> Вызов функции ассистента');
-  console.log('  function:', function_name);
-  console.log('  args:', JSON.stringify(args));
-  console.log('=============================================');
+  console.log('\n===========================================');
+  console.log('>>> Правительственный ассистент');
+  console.log(`Функция: ${function_name}`);
+  console.log(`Аргументы: ${JSON.stringify(args)}`);
+  console.log('===========================================');
 
-  if (function_name === 'db_query') {
-    try {
-      const { message } = args || {}; 
-      if (!message || typeof message !== 'string') {
-        return res.json({ success: false, error: "message (string) is required" });
-      }
+  try {
+    let result = '';
 
-      // Формируем запрос для Wren AI
-      const payload = {
-        projectId: PROJECT_ID,
-        question: message
-      };
+    switch (function_name) {
+      case 'db_query':
+        // База данных через Wren AI
+        const { message } = args || {};
+        if (!message) {
+          return res.json({ success: false, error: "message обязателен для db_query" });
+        }
+        result = await callWrenAI(message);
+        break;
 
-      console.log(`📤 Отправляем в Wren AI: ${JSON.stringify(payload)}`);
+      case 'law_based_answering':
+        // Правовые вопросы через SerpAPI
+        const { legal_query } = args || {};
+        if (!legal_query) {
+          return res.json({ success: false, error: "legal_query обязателен для law_based_answering" });
+        }
+        result = await performSerpAPISearch(legal_query, "law");
+        break;
 
-      const wrenResponse = await axios.post(WREN_AI_URL, payload, {
-        headers: { 
-          'Authorization': `Bearer ${WREN_API_TOKEN}`,
-          'Content-Type': 'application/json' 
-        },
-        timeout: 30000
-      });
+      case 'next_meeting_recommendation':
+        // Рекомендации для встреч через Nitec AI
+        const { meeting_topic } = args || {};
+        if (!meeting_topic) {
+          return res.json({ success: false, error: "meeting_topic обязателен для next_meeting_recommendation" });
+        }
+        result = await callNitecAI('1_recom_db', meeting_topic);
+        break;
 
-      console.log(`📥 Ответ от Wren AI:`, wrenResponse.data);
+      case 'best_practices_search':
+        // Международные практики через SerpAPI
+        const { practice_query } = args || {};
+        if (!practice_query) {
+          return res.json({ success: false, error: "practice_query обязателен для best_practices_search" });
+        }
+        result = await performSerpAPISearch(practice_query, "practices");
+        break;
 
-      const responseData = wrenResponse.data || {};
-      const summary = responseData.summary || 'Данные не найдены';
+      case 'overview_situation_kazakhstan':
+        // Обзор ситуации в Казахстане через Nitec AI
+        const { situation_query } = args || {};
+        if (!situation_query) {
+          return res.json({ success: false, error: "situation_query обязателен для overview_situation_kazakhstan" });
+        }
+        result = await callNitecAI('1_recom_andrei', situation_query);
+        break;
 
-      return res.json({ 
-        success: true, 
-        result: summary,
-        // Дополнительная информация для отладки
-        sql: responseData.sql,
-        threadId: responseData.threadId,
-        id: responseData.id
-      });
-
-    } catch (error) {
-      console.error("❌ db_query error:", error.response?.data || error.message);
-      
-      // Более детальная обработка ошибок
-      let errorMessage = "Ошибка при обращении к системе аналитики";
-      if (error.response?.status === 401) {
-        errorMessage = "Ошибка авторизации в системе аналитики";
-      } else if (error.response?.status === 404) {
-        errorMessage = "Проект не найден в системе аналитики";
-      } else if (error.code === 'ECONNABORTED') {
-        errorMessage = "Превышено время ожидания ответа от системы";
-      }
-
-      return res.json({ success: false, error: errorMessage });
+      default:
+        return res.status(400).json({ 
+          success: false, 
+          error: `Неизвестная функция: ${function_name}` 
+        });
     }
-  }
 
-  if (function_name === 'get_external_info') {
-    try {
-      const { source_model, user_query } = args || {};
-      const response = await axios.post(
-        'https://nitec-ai.kz/api/chat/completions',
-        { model: source_model, stream: false, messages: [{ role: 'user', content: user_query }] },
-        { headers: { Authorization: `Bearer ${NITEC_AI_BEARER_TOKEN}`, 'Content-Type': 'application/json' } }
-      );
-      const content = response.data.choices?.[0]?.message?.content || '';
-      return res.json({ success: true, result: content });
-    } catch (err) {
-      console.error('❌ get_external_info error:', err.response?.data || err.message);
-      return res.json({ success: false, error: 'Ошибка при обращении к внешнему источнику.' });
-    }
-  }
+    console.log(`✅ Результат (${function_name}):`, result.substring(0, 200) + '...');
 
-  if (function_name === 'perform_web_search') {
-    try {
-      const { search_query } = args || {};
-      if (!search_query || typeof search_query !== 'string') {
-        return res.json({ success: false, error: 'search_query (string) is required' });
-      }
-      console.log(`🔍 Поиск [${SEARCH_PROVIDER}] по запросу: "${search_query}"`);
-      const resultText = await performSearch(search_query);
-      return res.json({ success: true, result: resultText });
-    } catch (err) {
-      console.error('❌ perform_web_search error:', err.response?.data || err.message);
-      return res.json({ success: false, error: 'Ошибка при выполнении веб-поиска.' });
-    }
-  }
+    return res.json({ 
+      success: true, 
+      result: result 
+    });
 
-  return res.status(400).json({ success: false, error: `Unknown function: ${function_name}` });
+  } catch (error) {
+    console.error(`❌ Ошибка функции ${function_name}:`, error.message);
+    return res.json({ 
+      success: false, 
+      error: `Ошибка при выполнении функции ${function_name}` 
+    });
+  }
 });
 
-/** ---------- Запуск ---------- */
+/** ---------- Server Start ---------- */
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`🔍 Search provider: ${SEARCH_PROVIDER}`);
+  console.log(`🚀 Правительственный ассистент запущен на порту ${PORT}`);
   console.log(`📊 Wren AI Project ID: ${PROJECT_ID}`);
+  console.log(`🤖 Nitec AI модели: 1_recom_db, 1_recom_andrei`);
+  console.log(`🔍 SerpAPI активен для поиска`);
 });
