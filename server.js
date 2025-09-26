@@ -18,10 +18,8 @@ const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
 // Поисковые системы
 const SERPAPI_API_KEY = "5b428af6a0a873bbd5d882ce73d5b2aa95e16db84fecebeef032ba7ea7fd47fb";
 
-// Wren AI для базы данных
-const WREN_AI_URL = "https://cloud.getwren.ai/api/v1/ask";
-const WREN_API_TOKEN = "sk-Q2nNDxNKzoH77Q";
-const PROJECT_ID = 10875;
+// Возвращаем оригинальный DB webhook
+const DB_WEBHOOK_URL = "http://100.70.129.186/webhook/f305536a-f827-4c38-9b72-ace15bf3f3c1";
 
 app.use(cors());
 app.use(express.json());
@@ -151,21 +149,34 @@ async function callNitecAI(model, userQuery) {
   }
 }
 
-// Wren AI запрос
-async function callWrenAI(question) {
+// Оригинальный DB webhook запрос
+async function callOriginalDB(message) {
   try {
-    const payload = { projectId: PROJECT_ID, question: question };
-    const response = await axios.post(WREN_AI_URL, payload, {
-      headers: { 
-        'Authorization': `Bearer ${WREN_API_TOKEN}`,
-        'Content-Type': 'application/json' 
-      },
+    const payload = {
+      sessionId: "12345", 
+      message: message  // Всегда на русском приходит из LLM
+    };
+
+    console.log(`📤 Отправляем в оригинальную БД: ${JSON.stringify(payload)}`);
+
+    const response = await axios.post(DB_WEBHOOK_URL, payload, {
+      headers: { 'Content-Type': 'application/json' },
       timeout: 30000
     });
 
-    return response.data?.summary || response.data?.answer || 'Данные не найдены';
+    console.log(`📥 Ответ от оригинальной БД:`, response.data);
+
+    // Пытаемся найти текст ответа в популярных полях
+    const responseData = response.data || {};
+    const result = responseData.answer || 
+                   responseData.message || 
+                   responseData.result || 
+                   (typeof responseData === 'string' ? responseData : JSON.stringify(responseData)) ||
+                   'Данные не найдены';
+
+    return result;
   } catch (error) {
-    console.error('Wren AI error:', error.response?.data || error.message);
+    console.error('Original DB error:', error.response?.data || error.message);
     return 'Ошибка при обращении к базе данных';
   }
 }
@@ -185,12 +196,12 @@ app.post('/api/assistant', async (req, res) => {
 
     switch (function_name) {
       case 'db_query':
-        // База данных через Wren AI
+        // База данных через оригинальный webhook
         const { message } = args || {};
         if (!message) {
           return res.json({ success: false, error: "message обязателен для db_query" });
         }
-        result = await callWrenAI(message);
+        result = await callOriginalDB(message);
         break;
 
       case 'law_based_answering':
@@ -255,7 +266,7 @@ app.post('/api/assistant', async (req, res) => {
 /** ---------- Server Start ---------- */
 app.listen(PORT, () => {
   console.log(`🚀 Правительственный ассистент запущен на порту ${PORT}`);
-  console.log(`📊 Wren AI Project ID: ${PROJECT_ID}`);
+  console.log(`📊 Original DB: ${DB_WEBHOOK_URL}`);
   console.log(`🤖 Nitec AI модели: 1_recom_db, 1_recom_andrei`);
   console.log(`🔍 SerpAPI активен для поиска`);
 });
