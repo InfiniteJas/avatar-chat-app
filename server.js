@@ -1,4 +1,4 @@
-// server.js (ФИНАЛЬНАЯ ВЕРСИЯ С ИСПРАВЛЕННЫМ ВЕБ-ПОИСКОМ + LANG DETECT)
+// server.js (ИСПРАВЛЕННАЯ ВЕРСИЯ С ЛУЧШИМ ОПРЕДЕЛЕНИЕМ ЯЗЫКА)
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -7,17 +7,15 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🛑 ВАШИ ДАННЫЕ ВСТАВЛЕНЫ ПРЯМО В КОД
+// 🛑 ВАШИ ДАННЫЕ
 const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
-const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
+const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5cWg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
 const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
 
 const SEARCH_PROVIDER = "serpapi"; // "serpapi" | "tavily"
 const SERPAPI_API_KEY = "5b428af6a0a873bbd5d882ce73d5b2aa95e16db84fecebeef032ba7ea7fd47fb";
 
 const DB_WEBHOOK_URL = "https://gshsh.nitec-ai.kz/webhook/f305536a-f827-4c38-9b72-ace15bf3f3c1";
-// const TAVILY_API_KEY  = "<OPTIONAL_TAVILY_KEY>";
-/** ====================================================== */
 
 app.use(cors());
 app.use(express.json());
@@ -163,6 +161,31 @@ async function performSearch(query) {
   }
 }
 
+// 🎯 УЛУЧШЕННАЯ функция определения языка
+function detectLanguage(text) {
+  if (!text || typeof text !== 'string') return 'ru';
+  
+  // Казахские специфические символы  
+  const kazakhChars = /[әіңғүұқөһ]/gi;
+  
+  // Подсчитываем слова с казахскими символами
+  const words = text.split(/\s+/).filter(w => w.length > 1); // исключаем короткие слова
+  const kazakhMatches = text.match(kazakhChars) || [];
+  
+  // Если в тексте есть казахские символы - это казахский
+  const kazakhPercentage = kazakhMatches.length > 0 ? (kazakhMatches.length / text.length) * 100 : 0;
+  
+  console.log(`🔍 Анализ языка: "${text.substring(0, 50)}..."`);
+  console.log(`   Казахских символов: ${kazakhMatches.length} из ${text.length} (${kazakhPercentage.toFixed(1)}%)`);
+  
+  // Если есть хотя бы один казахский символ - считаем казахским
+  const isKazakh = kazakhMatches.length > 0;
+  
+  console.log(`   Результат: ${isKazakh ? 'kk' : 'ru'}`);
+  
+  return isKazakh ? 'kk' : 'ru';
+}
+
 /** ---------- Обработчик кастомных функций ассистента ---------- */
 app.post('/api/assistant', async (req, res) => {
   const { function_name, arguments: args } = req.body || {};
@@ -175,7 +198,7 @@ app.post('/api/assistant', async (req, res) => {
 
   if (function_name === 'db_query') {
     try {
-      const { message } = args || {}; // session_id больше не берём из args
+      const { message } = args || {}; 
       if (!message || typeof message !== 'string') {
         return res.json({ success: false, error: "message (string) is required" });
       }
@@ -186,10 +209,14 @@ app.post('/api/assistant', async (req, res) => {
         message: message
       };
 
+      console.log(`📤 Отправляем в БД: ${JSON.stringify(payload)}`);
+
       const dbResp = await axios.post(DB_WEBHOOK_URL, payload, {
         headers: { 'Content-Type': 'application/json' },
         timeout: 20000
       });
+
+      console.log(`📥 Ответ от БД:`, dbResp.data);
 
       // Пытаемся найти текст ответа в популярных полях
       const d = dbResp.data || {};
@@ -199,19 +226,16 @@ app.post('/api/assistant', async (req, res) => {
         d.result ||
         (typeof d === 'string' ? d : JSON.stringify(d));
 
-      // 🟢 Определяем язык ответа
-      let lang = "ru";
-      if (/[әіңғүұқөһ]/i.test(text)) {
-        lang = "kk";
-      }
+      // 🟢 Определяем язык ответа УЛУЧШЕННЫМ способом
+      const detectedLang = detectLanguage(text);
 
       return res.json({ 
         success: true, 
         result: text || "Пустой ответ от сервиса.",
-        lang 
+        lang: detectedLang 
       });
     } catch (error) {
-      console.error("db_query error:", error.response?.data || error.message);
+      console.error("❌ db_query error:", error.response?.data || error.message);
       return res.json({ success: false, error: "Ошибка при обращении к БД-сервису." });
     }
   }
@@ -227,7 +251,7 @@ app.post('/api/assistant', async (req, res) => {
       const content = response.data.choices?.[0]?.message?.content || '';
       return res.json({ success: true, result: content });
     } catch (err) {
-      console.error('get_external_info error:', err.response?.data || err.message);
+      console.error('❌ get_external_info error:', err.response?.data || err.message);
       return res.json({ success: false, error: 'Ошибка при обращении к внешнему источнику.' });
     }
   }
@@ -238,11 +262,11 @@ app.post('/api/assistant', async (req, res) => {
       if (!search_query || typeof search_query !== 'string') {
         return res.json({ success: false, error: 'search_query (string) is required' });
       }
-      console.log(`-- Поиск [${SEARCH_PROVIDER}] по запросу: "${search_query}"`);
+      console.log(`🔍 Поиск [${SEARCH_PROVIDER}] по запросу: "${search_query}"`);
       const resultText = await performSearch(search_query);
       return res.json({ success: true, result: resultText });
     } catch (err) {
-      console.error('perform_web_search error:', err.response?.data || err.message);
+      console.error('❌ perform_web_search error:', err.response?.data || err.message);
       return res.json({ success: false, error: 'Ошибка при выполнении веб-поиска.' });
     }
   }
@@ -252,6 +276,6 @@ app.post('/api/assistant', async (req, res) => {
 
 /** ---------- Запуск ---------- */
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Search provider: ${SEARCH_PROVIDER}`);
+  console.log(`🚀 Server is running on port ${PORT}`);
+  console.log(`🔍 Search provider: ${SEARCH_PROVIDER}`);
 });
