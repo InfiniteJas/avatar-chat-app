@@ -1,4 +1,4 @@
-// Файл: public/js/chat.js (ПОЛНАЯ ФИНАЛЬНАЯ ВЕРСИЯ)
+// Файл: public/js/chat.js (ПОЛНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ)
 
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license.
@@ -13,9 +13,6 @@ var messageInitiated = false;
 var dataSources = [];
 var sentenceLevelPunctuations = [ '.', '?', '!', ':', ';', '。', '？', '！', '：', '；' ];
 var enableDisplayTextAlignmentWithSpeech = true;
-var enableQuickReply = false;
-var quickReplies = [ 'Let me take a look.', 'Let me check.', 'One moment, please.' ];
-var byodDocRegex = new RegExp(/\[doc(\d+)\]/g);
 var isSpeaking = false;
 var isReconnecting = false;
 var speakingText = "";
@@ -28,10 +25,10 @@ var lastSpeakTime;
 var imgUrl = "";
 
 // Assistant API variables
-var assistantId = 'asst_LMHsNblhuLgYt9I2RpMfm3Kr'; // ID вашего ассистента
+var assistantId = 'asst_LMHsNbIhuLgYt9I2RpMfm3Kr'; // ID вашего ассистента
 var threadId = null;
 var runId = null;
-var functionCallsEndpoint = '/api/assistant';
+var functionCallsEndpoint = '/api/assistant'; // Используем относительный путь к своему же серверу
 
 // Connect to avatar service
 function connectAvatar() {
@@ -65,7 +62,7 @@ function connectAvatar() {
         if (e.offset === 0) {
             offsetMessage = "";
         }
-        console.log("Event received: " + e.description + offsetMessage);
+        console.log("Event received: " + e.description + offsetMessage, "chat.js:68");
     };
     let speechRecognitionConfig;
     if (privateEndpointEnabled) {
@@ -77,8 +74,6 @@ function connectAvatar() {
     var sttLocales = document.getElementById('sttLocales').value.split(',');
     var autoDetectSourceLanguageConfig = SpeechSDK.AutoDetectSourceLanguageConfig.fromLanguages(sttLocales);
     speechRecognizer = SpeechSDK.SpeechRecognizer.FromConfig(speechRecognitionConfig, autoDetectSourceLanguageConfig, SpeechSDK.AudioConfig.fromDefaultMicrophoneInput());
-
-    // УДАЛЕНА ПРОВЕРКА КЛЮЧЕЙ OPENAI, ТАК КАК ОНИ ТЕПЕРЬ НА СЕРВЕРЕ
 
     if (!messageInitiated) {
         initMessages();
@@ -134,7 +129,7 @@ function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
                 audioElement.play();
             });
             audioElement.onplaying = () => {
-                console.log(`WebRTC ${event.track.kind} channel connected.`);
+                console.log(`WebRTC ${event.track.kind} channel connected.`, "chat.js:137");
             };
             remoteVideoDiv = document.getElementById('remoteVideo');
             for (var i = 0; i < remoteVideoDiv.childNodes.length; i++) {
@@ -173,7 +168,7 @@ function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
                 }
                 videoElement.style.width = '960px';
                 document.getElementById('remoteVideo').appendChild(videoElement);
-                console.log(`WebRTC ${event.track.kind} channel connected.`);
+                console.log(`WebRTC ${event.track.kind} channel connected.`, "chat.js:176");
                 document.getElementById('microphone').disabled = false;
                 document.getElementById('stopSession').disabled = false;
                 document.getElementById('remoteVideo').style.width = '960px';
@@ -214,12 +209,12 @@ function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
                     }
                 }
             }
-            console.log("[" + (new Date()).toISOString() + "] WebRTC event received: " + e.data);
+            console.log("[" + (new Date()).toISOString() + "] WebRTC event received: " + e.data, "chat.js:217");
         };
     });
-    c = peerConnection.createDataChannel("eventChannel");
+    var c = peerConnection.createDataChannel("eventChannel");
     peerConnection.oniceconnectionstatechange = e => {
-        console.log("WebRTC status: " + peerConnection.iceConnectionState);
+        console.log("WebRTC status: " + peerConnection.iceConnectionState, "chat.js:222");
         if (peerConnection.iceConnectionState === 'disconnected') {
             if (document.getElementById('useLocalVideoForIdle').checked) {
                 document.getElementById('localVideo').hidden = false;
@@ -231,22 +226,22 @@ function setupWebRTC(iceServerUrl, iceServerUsername, iceServerCredential) {
     peerConnection.addTransceiver('audio', { direction: 'sendrecv' });
     avatarSynthesizer.startAvatarAsync(peerConnection).then((r) => {
         if (r.reason === SpeechSDK.ResultReason.SynthesizingAudioCompleted) {
-            console.log("[" + (new Date()).toISOString() + "] Avatar started. Result ID: " + r.resultId);
+            console.log("[" + (new Date()).toISOString() + "] Avatar started. Result ID: " + r.resultId, "chat.js:234");
         } else {
-            console.log("[" + (new Date()).toISOString() + "] Unable to start avatar. Result ID: " + r.resultId);
+            console.log("[" + (new Date()).toISOString() + "] Unable to start avatar. Result ID: " + r.resultId, "chat.js:236");
             if (r.reason === SpeechSDK.ResultReason.Canceled) {
                 let cancellationDetails = SpeechSDK.CancellationDetails.fromResult(r);
                 if (cancellationDetails.reason === SpeechSDK.CancellationReason.Error) {
-                    console.log(cancellationDetails.errorDetails);
+                    console.log(cancellationDetails.errorDetails, "chat.js:240");
                 }
-                console.log("Unable to start avatar: " + cancellationDetails.errorDetails);
+                console.log("Unable to start avatar: " + cancellationDetails.errorDetails, "chat.js:242");
             }
             document.getElementById('startSession').disabled = false;
             document.getElementById('configuration').hidden = false;
         }
     }).catch(
         (error) => {
-            console.log("[" + (new Date()).toISOString() + "] Avatar failed to start. Error: " + error);
+            console.log("[" + (new Date()).toISOString() + "] Avatar failed to start. Error: " + error, "chat.js:249");
             document.getElementById('startSession').disabled = false;
             document.getElementById('configuration').hidden = false;
         }
@@ -288,7 +283,7 @@ function speakNext(text, endingSilenceMs = 0, skipUpdatingChatHistory = false) {
     }
     if (enableDisplayTextAlignmentWithSpeech && !skipUpdatingChatHistory) {
         let chatHistoryTextArea = document.getElementById('chatHistory');
-        chatHistoryTextArea.innerHTML += text.replace(/\n/g, '<br/>');
+        chatHistoryTextArea.innerHTML += '<br/>Assistant: ' + text.replace(/\n/g, '<br/>') + '<br/>';
         chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight;
     }
     lastSpeakTime = new Date();
@@ -331,7 +326,7 @@ function stopSpeaking() {
         () => {
             isSpeaking = false;
             document.getElementById('stopSpeaking').disabled = true;
-            console.log("[" + (new Date()).toISOString() + "] Stop speaking request sent.");
+            console.log("[" + (new Date()).toISOString() + "] Stop speaking request sent.", "chat.js:334");
         }
     ).catch(
         (error) => {
@@ -341,17 +336,17 @@ function stopSpeaking() {
 }
 
 // =================================================================================
-// ===== ИЗМЕНЕННАЯ СЕКЦИЯ ДЛЯ РАБОТЫ С ПРОКСИ-СЕРВЕРОМ =====
+// ===== СЕКЦИЯ ДЛЯ РАБОТЫ С ПРОКСИ-СЕРВЕРОМ (ASSISTANTS API) =====
 // =================================================================================
 
-function handleUserQuery(userQuery, userQueryHTML, imgUrlPath) {
+function handleUserQuery(userQuery, userQueryHTML = "", imgUrlPath = "") {
     lastInteractionTime = new Date();
     
     let chatHistoryTextArea = document.getElementById('chatHistory');
     if (chatHistoryTextArea.innerHTML !== '' && !chatHistoryTextArea.innerHTML.endsWith('\n\n')) {
         chatHistoryTextArea.innerHTML += '\n\n';
     }
-    chatHistoryTextArea.innerHTML += imgUrlPath.trim() ? "<br/><br/>User: " + userQueryHTML : "<br/><br/>User: " + userQuery + "<br/>";
+    chatHistoryTextArea.innerHTML += "<br/><br/>User: " + (userQueryHTML || userQuery) + "<br/>";
     chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight;
 
     if (isSpeaking) {
@@ -380,7 +375,7 @@ async function createThread(userQuery) {
         }
         const thread = await response.json();
         threadId = thread.id;
-        console.log('Thread created via proxy:', threadId);
+        console.log('Thread created via proxy:', threadId, "chat.js:383");
         runAssistant();
     } catch (error) {
         console.error('Error creating thread:', error);
@@ -414,7 +409,7 @@ async function runAssistant() {
         if (!response.ok) throw new Error('Failed to run assistant');
         const run = await response.json();
         runId = run.id;
-        console.log('Assistant run started via proxy:', runId);
+        console.log('Assistant run started via proxy:', runId, "chat.js:417");
         checkRunStatus();
     } catch (error) {
         console.error('Error running assistant:', error);
@@ -427,12 +422,14 @@ async function checkRunStatus() {
         const response = await fetch(`/api/threads/${threadId}/runs/${runId}`);
         if (!response.ok) throw new Error('Failed to check run status');
         const status = await response.json();
-        console.log('Run status:', status.status);
+        console.log('Run status:', status.status, "chat.js:430");
         
         if (status.status === 'completed') {
             getAssistantResponse();
         } else if (status.status === 'requires_action') {
             handleFunctionCalls(status.required_action.submit_tool_outputs.tool_calls);
+        } else if (status.status === 'in_progress') {
+             setTimeout(checkRunStatus, 2000); // Продолжаем проверку
         } else if (status.status === 'failed') {
             console.error('Assistant run failed:', status.last_error);
             displayError('Ошибка выполнения запроса');
@@ -450,7 +447,7 @@ async function handleFunctionCalls(toolCalls) {
     for (const toolCall of toolCalls) {
         if (toolCall.type === 'function') {
             try {
-                console.log('Calling function via endpoint:', toolCall.function.name, toolCall.function.arguments);
+                console.log('Calling function via endpoint:', toolCall.function.name, "with arguments:", toolCall.function.arguments, "chat.js:453");
                 const functionResponse = await fetch(functionCallsEndpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -460,7 +457,7 @@ async function handleFunctionCalls(toolCalls) {
                     })
                 });
                 const result = await functionResponse.json();
-                console.log('Function result:', result);
+                console.log('Function result:', result, "chat.js:463");
                 toolOutputs.push({
                     tool_call_id: toolCall.id,
                     output: JSON.stringify(result.success ? result.result : { error: result.error })
@@ -485,7 +482,7 @@ async function submitToolOutputs(toolOutputs) {
             body: JSON.stringify({ tool_outputs: toolOutputs })
         });
         if (!response.ok) throw new Error('Failed to submit tool outputs');
-        console.log('Submitted tool outputs successfully');
+        console.log('Submitted tool outputs successfully', "chat.js:488");
         setTimeout(checkRunStatus, 1000);
     } catch (error) {
         console.error('Error submitting tool outputs:', error);
@@ -502,13 +499,13 @@ async function getAssistantResponse() {
         
         if (assistantMessage && assistantMessage.content[0]) {
             const responseText = assistantMessage.content[0].text.value;
-            console.log('Assistant response:', responseText);
+            console.log('Assistant response:', responseText.substring(0,100) + "...", "chat.js:505");
             displayAndSpeakResponse(responseText);
         } else {
             const lastAssistantMessage = messagesData.data.find(msg => msg.role === 'assistant');
             if (lastAssistantMessage && lastAssistantMessage.content[0]) {
                 const responseText = lastAssistantMessage.content[0].text.value;
-                console.log('Assistant response (fallback):', responseText);
+                console.log('Assistant response (fallback):', responseText.substring(0,100) + "...", "chat.js:511");
                 displayAndSpeakResponse(responseText);
             } else {
                 displayError('Не удалось получить ответ ассистента');
@@ -521,12 +518,7 @@ async function getAssistantResponse() {
 }
 
 function displayAndSpeakResponse(text) {
-    let chatHistoryTextArea = document.getElementById('chatHistory');
-    //chatHistoryTextArea.innerHTML += '<br/>Assistant: ' + text.replace(/\n/g, '<br/>') + '<br/>';
-    //chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight;
-    
     // Вывод текста в чат перенесен в функцию speakNext, чтобы текст появлялся синхронно с речью
-    // А здесь мы просто вызываем озвучку
     speak(text);
 }
 
@@ -537,11 +529,8 @@ function displayError(message) {
 }
 
 // =================================================================================
-// ===== КОНЕЦ ИЗМЕНЕННОЙ СЕКЦИИ =====
+// ===== ОСТАЛЬНЫЕ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (БЕЗ ИЗМЕНЕНИЙ) =====
 // =================================================================================
-
-
-// --- ОСТАЛЬНЫЕ ФУНКЦИИ БЕЗ ИЗМЕНЕНИЙ ---
 
 function checkHung() {
     let videoElement = document.getElementById('videoPlayer');
@@ -654,10 +643,14 @@ window.microphone = () => {
             connectAvatar();
         }
         setTimeout(() => {
-            document.getElementById('audioPlayer').play();
+            if (document.getElementById('audioPlayer')) {
+                document.getElementById('audioPlayer').play();
+            }
         }, 5000);
     } else {
-        document.getElementById('audioPlayer').play();
+        if (document.getElementById('audioPlayer')) {
+            document.getElementById('audioPlayer').play();
+        }
     }
     document.getElementById('microphone').disabled = true;
     speechRecognizer.recognized = async (s, e) => {
@@ -754,3 +747,4 @@ window.updateCustomAvatarBox = () => {
         document.getElementById('useBuiltInVoice').checked = false;
     }
 };
+
