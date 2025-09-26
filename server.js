@@ -18,6 +18,8 @@ const NITEC_AI_BEARER_TOKEN = "sk-196c1fe7e5be40b2b7b42bc235c49147";
 
 const SEARCH_PROVIDER = "serpapi"; // "serpapi" | "tavily"
 const SERPAPI_API_KEY = "5b428af6a0a873bbd5d882ce73d5b2aa95e16db84fecebeef032ba7ea7fd47fb";
+
+const DB_WEBHOOK_URL = "https://gshsh.nitec-ai.kz/webhook/f305536a-f827-4c38-9b72-ace15bf3f3c1";
 // const TAVILY_API_KEY  = "<OPTIONAL_TAVILY_KEY>";
 /** ====================================================== */
 
@@ -174,6 +176,38 @@ app.post('/api/assistant', async (req, res) => {
   console.log('  function:', function_name);
   console.log('  args:', JSON.stringify(args));
   console.log('=============================================');
+
+  if (function_name === 'db_query') {
+    try {
+      const { session_id, message } = arguments || args || {}; // на случай разного имени поля
+      if (!message || typeof message !== 'string') {
+        return res.json({ success: false, error: "message (string) is required" });
+      }
+  
+      const payload = {
+        sessionId: session_id || "default",
+        message: message
+      };
+  
+      const dbResp = await axios.post(DB_WEBHOOK_URL, payload, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 20000
+      });
+  
+      // Пытаемся найти текст ответа в популярных полях
+      const d = dbResp.data || {};
+      const text =
+        d.answer ||
+        d.message ||
+        d.result ||
+        (typeof d === 'string' ? d : JSON.stringify(d));
+  
+      return res.json({ success: true, result: text || "Пустой ответ от сервиса." });
+    } catch (error) {
+      console.error("db_query error:", error.response?.data || error.message);
+      return res.json({ success: false, error: "Ошибка при обращении к БД-сервису." });
+    }
+  }
 
   if (function_name === 'get_external_info') {
     try {
