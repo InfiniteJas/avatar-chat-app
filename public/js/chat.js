@@ -519,48 +519,93 @@ async function getAssistantResponse() {
     }
 }
 
+function cleanTextForTTS(rawText, lang) {
+  let t = String(rawText);
+
+  // Убираем слэши полностью (основная причина "горизонтальный бір нәрсе")
+  t = t.replace(/[\/\\]/g, ' ');
+
+  // Убираем прочие знаки, которые могут портить озвучку
+  t = t.replace(/[№%()\-–—_:;[\]{}<>]/g, ' ');
+
+  // Схлопываем повторные пробелы
+  t = t.replace(/\s+/g, ' ').trim();
+
+  return t;
+}
+
 function displayAndSpeakResponse(text, lang = "ru") {
+    // 1) базовый текст
     let finalText = text;
 
+    // 2) приветствие только один раз
     if (!greeted) {
         finalText = `Армысыз, Олжас Абаевич! ${text}`;
         greeted = true;
     }
 
-    // 🟢 Подбираем голос в зависимости от языка
+    // 3) очистка текста от символов, которые ломают озвучку
+    const cleaned = cleanTextForTTS(finalText, lang);
+
+    // 4) выбираем голос по языку
     let ttsVoice = "ru-RU-SvetlanaNeural";
+    let xmlLang = "ru-RU";
     if (lang === "kk") {
         ttsVoice = "kk-KZ-AigulNeural";
+        xmlLang = "kk-KZ";
     }
 
-    // ⬇️ подставляем выбранный голос прямо в speakNext()
-    let ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'
-        xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='${lang === "kk" ? "kk-KZ" : "ru-RU"}'>
-        <voice name='${ttsVoice}'>${htmlEncode(finalText)}</voice></speak>`;
+    // 5) собираем SSML c ОЧИЩЕННЫМ текстом
+    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'
+        xmlns:mstts='http://www.w3.org/2001/mstts' xml:lang='${xmlLang}'>
+        <voice name='${ttsVoice}'><mstts:leadingsilence-exact value='0'/>${htmlEncode(cleaned)}</voice>
+    </speak>`;
 
+    // 6) выводим текст в чат синхронно с речью (как и раньше)
+    if (enableDisplayTextAlignmentWithSpeech) {
+        const chatHistoryTextArea = document.getElementById('chatHistory');
+        chatHistoryTextArea.innerHTML += '<br/>Assistant: ' + cleaned.replace(/\n/g, '<br/>') + '<br/>';
+        chatHistoryTextArea.scrollTop = chatHistoryTextArea.scrollHeight;
+    }
+
+    // 7) очередь озвучки (как у тебя было)
     if (isSpeaking) {
-        spokenTextQueue.push(finalText);
+        spokenTextQueue.push(cleaned);
         return;
     }
+
     lastSpeakTime = new Date();
     isSpeaking = true;
-    speakingText = finalText;
+    speakingText = cleaned;
     document.getElementById('stopSpeaking').disabled = false;
 
+    // полезные логи, чтобы видеть, какой голос реально пошёл и что читаем
+    console.log("🔊 Voice:", ttsVoice, " Lang:", lang);
+    console.log("🗣️ TTS text:", cleaned);
+
     avatarSynthesizer.speakSsmlAsync(ssml).then(
-        (result) => {
-            isSpeaking = false;
-            document.getElementById('stopSpeaking').disabled = true;
+        () => {
             speakingText = '';
+            if (spokenTextQueue.length > 0) {
+                // если в очереди что-то осталось — дочитываем
+                // используй ту же функцию, чтобы сохранить поведение
+                displayAndSpeakResponse(spokenTextQueue.shift(), lang);
+            } else {
+                isSpeaking = false;
+                document.getElementById('stopSpeaking').disabled = true;
+            }
         }
     ).catch((error) => {
         console.error("Ошибка синтеза речи:", error);
-        isSpeaking = false;
-        document.getElementById('stopSpeaking').disabled = true;
         speakingText = '';
+        if (spokenTextQueue.length > 0) {
+            displayAndSpeakResponse(spokenTextQueue.shift(), lang);
+        } else {
+            isSpeaking = false;
+            document.getElementById('stopSpeaking').disabled = true;
+        }
     });
 }
-
 
 function displayError(message) {
     let chatHistoryTextArea = document.getElementById('chatHistory');
