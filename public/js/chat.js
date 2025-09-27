@@ -33,130 +33,6 @@ var runId = null;
 var functionCallsEndpoint = '/api/assistant';
 
 // ==== Chat UI helpers ====
-function fileExtFromUrl(url) {
-    try {
-        const u = new URL(url);
-        const pathname = u.pathname || '';
-        const m = pathname.match(/\.([a-z0-9]{1,6})(?:$|\?)/i);
-        return m ? m[1].toLowerCase() : '';
-    } catch { return ''; }
-}
-
-const DOC_EXTS = new Set([
-    'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
-    'csv', 'tsv', 'rtf', 'odt', 'ods', 'odp', 'txt', 'epub'
-]);
-
-// эвристики для прямых «файловых» URL даже без расширения
-function isDirectFileLike(url) {
-    try {
-        const u = new URL(url);
-        const host = u.host;
-        const qs = u.search;
-        const path = u.pathname;
-
-        if (/docs\.google\.com$/.test(host)) {
-            if (/\/document\/|\/spreadsheets\/|\/presentation\//.test(path) && /[?&]export=/.test(qs)) return true;
-            // uc?export=download
-            if (/\/uc$/i.test(path) && /[?&]export=download/i.test(qs)) return true;
-        }
-        if (/drive\.google\.com$/.test(host)) {
-            if (/[?&]export=download/i.test(qs)) return true;
-            if (/\/uc$/i.test(path) && /[?&]export=download/i.test(qs)) return true;
-        }
-
-        if (/dropbox\.com$/.test(host) && /[?&]dl=1\b/.test(qs)) return true;
-
-        if ((/onedrive\.live\.com$/.test(host) || /sharepoint\.com$/.test(host)) && /[?&]download=1\b/i.test(qs)) {
-            return true;
-        }
-
-        if (/\/download\b|\/export\b|\/d\/|\/files\//i.test(path)) return true;
-
-        return false;
-    } catch { return false; }
-}
-
-// главное правило: документ или явный «файл» — открываем внешне
-function shouldOpenExternally(url) {
-    const ext = fileExtFromUrl(url);
-    if (ext && DOC_EXTS.has(ext)) return true;
-    if (isDirectFileLike(url)) return true;
-    return false;
-}
-
-// ==== Link Preview Pane ====
-function openLinkPreview(url) {
-    try {
-        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-
-        // страховка
-        if (shouldOpenExternally(url)) {
-            window.open(url, '_blank', 'noopener');
-            return;
-        }
-
-        const pane = document.getElementById('linkPane');
-        const frame = document.getElementById('linkPaneFrame');
-        const title = document.getElementById('linkPaneHost');
-        const open = document.getElementById('linkPaneOpen');
-
-        try { title.textContent = new URL(url).host; } catch { title.textContent = 'Предпросмотр'; }
-        open.href = url;
-        frame.src = url;
-
-        pane.classList.add('linkpane--open');
-        pane.setAttribute('aria-hidden', 'false');
-    } catch (e) {
-        console.error('openLinkPreview error:', e);
-    }
-}
-
-function closeLinkPreview() {
-    const pane = document.getElementById('linkPane');
-    const frame = document.getElementById('linkPaneFrame');
-    pane.classList.remove('linkpane--open');
-    pane.setAttribute('aria-hidden', 'true');
-    // очищаем src, чтобы не висел фоновой процесс
-    frame.src = 'about:blank';
-}
-
-// Кнопка закрытия и Esc
-window.addEventListener('DOMContentLoaded', () => {
-    const closeBtn = document.getElementById('linkPaneClose');
-    if (closeBtn) closeBtn.addEventListener('click', closeLinkPreview);
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeLinkPreview();
-    });
-
-    // Делегирование кликов по ссылкам внутри истории
-    // Делегирование кликов по ссылкам внутри истории
-    const list = document.getElementById('chatHistoryList');
-    if (list) {
-        list.addEventListener('click', (e) => {
-            const a = e.target.closest('a');
-            if (!a) return;
-
-            // модификаторы — пусть открывается как пользователь хочет
-            if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
-
-            e.preventDefault();
-            let url = a.href;
-            if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-
-            // ⬇️ вот ключевая развилка
-            if (shouldOpenExternally(url)) {
-                window.open(url, '_blank', 'noopener'); // сразу новая вкладка
-                return;
-            }
-
-            // иначе — оставляем поведение с превью
-            openLinkPreview(url);
-        });
-    }
-});
-
 // pending UI
 var pendingMsgEl = null;
 
@@ -814,22 +690,22 @@ async function getAssistantResponse() {
 
 function cleanTextForTTS(rawText, lang) {
     let t = String(rawText);
-
+    
     t = t.replace(/https?:\/\/[^\s<>()]+/gi, '');
     t = t.replace(/www\.[^\s<>()]+/gi, '');
-
+    
     t = t.replace(/\*\*([^*]+)\*\*/g, '$1'); // **жирный** → жирный
     t = t.replace(/\*([^*]+)\*/g, '$1');     // *курсив* → курсив
     t = t.replace(/_([^_]+)_/g, '$1');       // _подчерк_ → подчерк
     t = t.replace(/#+\s*/g, '');             // ### заголовки убираем
     t = t.replace(/`([^`]+)`/g, '$1');       // `код` → код
-
+    
     t = t.replace(/[\/\\]/g, ' ');
     t = t.replace(/[№%()\-–—_:;[\]{}<>«»]/g, ' ');
     t = t.replace(/\.{2,}/g, '.');
     t = t.replace(/!{2,}/g, '!');
     t = t.replace(/\?{2,}/g, '?');
-
+    
     t = t.replace(/\|/g, ' ');               // таблицы
     t = t.replace(/>/g, ' ');                // цитаты >
     t = t.replace(/\+/g, 'плюс');            // + читается лучше как "плюс"
@@ -838,9 +714,9 @@ function cleanTextForTTS(rawText, lang) {
     t = t.replace(/@/g, ' собака ');         // @ → "собака"
     t = t.replace(/~/g, ' ');                // тильда
     t = t.replace(/\^/g, ' ');               // степень
-
+    
     t = t.replace(/\s+/g, ' ').trim();
-
+    
     console.log(`🧹 Очистка текста (${lang}): "${rawText.substring(0, 50)}..." → "${t.substring(0, 50)}..."`);
     return t;
 }
