@@ -33,6 +33,69 @@ var runId = null;
 var functionCallsEndpoint = '/api/assistant';
 
 // ==== Chat UI helpers ====
+// ==== Link Preview Pane ====
+function openLinkPreview(url) {
+    try {
+        // нормализуем url
+        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+        const pane = document.getElementById('linkPane');
+        const frame = document.getElementById('linkPaneFrame');
+        const title = document.getElementById('linkPaneHost');
+        const open = document.getElementById('linkPaneOpen');
+
+        // заголовок = хост
+        try {
+            const u = new URL(url);
+            title.textContent = u.host;
+        } catch {
+            title.textContent = 'Предпросмотр';
+        }
+
+        open.href = url;
+        frame.src = url;
+
+        pane.classList.add('linkpane--open');
+        pane.setAttribute('aria-hidden', 'false');
+    } catch (e) {
+        console.error('openLinkPreview error:', e);
+    }
+}
+
+function closeLinkPreview() {
+    const pane = document.getElementById('linkPane');
+    const frame = document.getElementById('linkPaneFrame');
+    pane.classList.remove('linkpane--open');
+    pane.setAttribute('aria-hidden', 'true');
+    // очищаем src, чтобы не висел фоновой процесс
+    frame.src = 'about:blank';
+}
+
+// Кнопка закрытия и Esc
+window.addEventListener('DOMContentLoaded', () => {
+    const closeBtn = document.getElementById('linkPaneClose');
+    if (closeBtn) closeBtn.addEventListener('click', closeLinkPreview);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeLinkPreview();
+    });
+
+    // Делегирование кликов по ссылкам внутри истории
+    const list = document.getElementById('chatHistoryList');
+    if (list) {
+        list.addEventListener('click', (e) => {
+            const a = e.target.closest('a');
+            if (!a) return;
+
+            // Позволяем Ctrl/Cmd-клик открывать в новой вкладке
+            if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+
+            e.preventDefault();
+            openLinkPreview(a.href);
+        });
+    }
+});
+
 // pending UI
 var pendingMsgEl = null;
 

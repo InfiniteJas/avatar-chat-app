@@ -1025,6 +1025,89 @@ small {
     border-radius: 50% !important;
 }
 
+/* ==== Link Preview Pane ==== */
+.chat-card {
+    position: relative;
+}
+
+.linkpane {
+    position: absolute;
+    top: 48px;
+    /* ниже шапки чата */
+    right: 0;
+    bottom: 0;
+    width: min(560px, 48%);
+    display: none;
+    flex-direction: column;
+    background: #fff;
+    border-left: 1px solid var(--divider);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, .08);
+    z-index: 3;
+}
+
+.linkpane--open {
+    display: flex;
+}
+
+.linkpane__header {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 8px;
+    border-bottom: 1px solid var(--divider);
+    background: #fff;
+}
+
+.linkpane__title {
+    font-weight: 700;
+    color: #0F172A;
+    padding-left: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.linkpane__actions {
+    display: inline-flex;
+    gap: 8px;
+}
+
+.linkpane__frame {
+    border: 0;
+    width: 100%;
+    height: calc(100% - 48px);
+    background: #fff;
+}
+
+.linkpane__media {
+    display: block;
+}
+
+/* Мобильный режим — панель во весь экран поверх чата */
+@media (max-width: 900px) {
+    .linkpane {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: auto;
+        border-left: none;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, .25);
+    }
+
+    .linkpane__header {
+        height: 52px;
+    }
+
+    .linkpane__frame {
+        height: calc(100% - 52px);
+    }
+}
+
+
 @media (max-height: 760px) {
     #videoContainer.avatar-box {
         min-height: clamp(200px, 36vh, 480px);
