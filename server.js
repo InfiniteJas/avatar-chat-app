@@ -8,8 +8,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Azure OpenAI настройки
-const AZURE_OPENAI_ENDPOINT = "https://a-ass55.openai.azure.com/";
-const AZURE_OPENAI_API_KEY = "FBx0qou5mQpzUs5cW4itbIk42WlgAj8TpmAjbw5uXPDhp5ckYg2QJQQJ99BIACHYHv6XJ3w3AAABACOGYhoG";
+const AZURE_OPENAI_ENDPOINT = "https://avatar-nitec-ai.openai.azure.com/";
+const AZURE_OPENAI_API_KEY = "Eb6cS8qKpXy4ITgvC1gPKpBz3jKdMFP9L6vKZBcL8TH75JnQm7TUJQQJ99BJACHYHv6XJ3w3AAABACOG9TkO";
 
 // Nitec AI настройки
 const NITEC_AI_ENDPOINT = "https://nitec-ai.kz/api/chat/completions";
