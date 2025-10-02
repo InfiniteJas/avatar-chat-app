@@ -23,11 +23,11 @@ var pendingMsgEl = null;
 var sttBuffer = '';
 var muteWhileRecording = false;
 
-// НОВАЯ ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ ДЛЯ ВЫБРАННОГО ЯЗЫКА
+// 🎯 НОВАЯ ГЛОБАЛЬНАЯ ПЕРЕМЕННАЯ ДЛЯ ВЫБРАННОГО ЯЗЫКА
 var selectedLanguage = "ru"; // по умолчанию русский
 
 // Assistant API переменные
-var assistantId = 'asst_ZfMTNaqn24ZOI6pgReEms3K7';
+var assistantId = 'asst_LMHsNblhuLgYt9I2RpMfm3Kr';
 var threadId = null;
 var runId = null;
 var functionCallsEndpoint = '/api/assistant';
